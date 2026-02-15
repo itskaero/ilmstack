@@ -15,11 +15,9 @@ It helps departments capture notes, manage case libraries, run review workflows,
 
 ## Screenshot
 
-Add a product screenshot at `docs/screenshot-dashboard.png`, then use:
 
-```markdown
 ![IlmStack Dashboard](./docs/screenshot-dashboard.png)
-```
+
 
 ## What It Includes
 
