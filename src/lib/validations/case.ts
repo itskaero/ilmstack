@@ -36,6 +36,7 @@ export const createCaseSchema = z.object({
   specialty: z.string().max(100).optional().nullable(),
   diagnosis: z.string().max(300).optional().nullable(),
   icd_codes: z.array(z.string().max(20)).optional().default([]),
+  growth_data: z.any().optional().nullable(),
 })
 
 export const updateCaseSchema = createCaseSchema.partial().extend({

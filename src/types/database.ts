@@ -195,6 +195,25 @@ export interface ManagementTimelineEntry {
   notes: string | null
 }
 
+export interface GrowthMeasurement {
+  id: string
+  date: string
+  age_months: number
+  weight_kg: number | null
+  height_cm: number | null
+  head_circumference_cm: number | null
+  bmi: number | null
+}
+
+export interface GrowthData {
+  measurements: GrowthMeasurement[]
+  parents?: {
+    father_height_cm?: number
+    mother_height_cm?: number
+  }
+  chart_type: 'who' | 'cdc'
+}
+
 export interface CaseRow {
   id: string
   workspace_id: string
@@ -214,6 +233,7 @@ export interface CaseRow {
   specialty: string | null
   diagnosis: string | null
   icd_codes: string[]
+  growth_data: GrowthData | null
   view_count: number
   published_at: string | null
   created_at: string
@@ -227,6 +247,8 @@ export interface CaseImagingRow {
   uploader_id: string
   caption: string | null
   modality: string | null
+  findings: string | null
+  category: string
   file_url: string
   storage_path: string
   file_name: string
@@ -376,6 +398,7 @@ export type CreateCaseInput = {
   specialty?: string
   diagnosis?: string
   icd_codes?: string[]
+  growth_data?: GrowthData | null
 }
 
 export type UpdateCaseInput = Partial<CreateCaseInput> & {
@@ -477,7 +500,7 @@ export interface Database {
       case_imaging: {
         Row: CaseImagingRow
         Insert: Omit<CaseImagingRow, 'id' | 'created_at'>
-        Update: Partial<Pick<CaseImagingRow, 'caption' | 'sort_order'>>
+        Update: Partial<Pick<CaseImagingRow, 'caption' | 'sort_order' | 'findings' | 'category'>>
       }
       journals: {
         Row: JournalRow

@@ -163,7 +163,7 @@ export function Sidebar({
 
       {/* User section */}
       <div className="border-t border-border p-2">
-        <UserMenu profile={profile} role={role} />
+        <UserMenu profile={profile} role={role} workspaceSlug={workspace.slug} />
       </div>
     </div>
   )

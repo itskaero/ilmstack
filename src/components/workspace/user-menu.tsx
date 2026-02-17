@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { LogOut, User, Settings, Moon, Sun, Laptop } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
@@ -18,17 +19,19 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { logoutAction } from '@/app/(auth)/actions'
 import { initials, truncate } from '@/lib/utils'
-import { ROLE_LABELS } from '@/config/app'
+import { ROLE_LABELS, ROUTES } from '@/config/app'
 import type { Profile, WorkspaceRole } from '@/types'
 
 interface Props {
   profile: Profile
   role: WorkspaceRole
+  workspaceSlug: string
 }
 
-export function UserMenu({ profile, role }: Props) {
+export function UserMenu({ profile, role, workspaceSlug }: Props) {
   const { setTheme } = useTheme()
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const displayName = profile.full_name ?? profile.email
   const displayTitle = [profile.title, profile.specialty].filter(Boolean).join(' · ')
@@ -71,9 +74,11 @@ export function UserMenu({ profile, role }: Props) {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem className="gap-2 cursor-pointer">
-          <User className="w-4 h-4" />
-          Profile
+        <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+          <Link href={ROUTES.profile(workspaceSlug, profile.id)}>
+            <User className="w-4 h-4" />
+            Profile
+          </Link>
         </DropdownMenuItem>
 
         {/* Theme submenu */}

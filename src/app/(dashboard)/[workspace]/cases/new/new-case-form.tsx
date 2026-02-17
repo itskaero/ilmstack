@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft, Save, Plus, X } from 'lucide-react'
+import { ArrowLeft, Save, Plus, X, Upload, FileText, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,9 +19,18 @@ import { Separator } from '@/components/ui/separator'
 import { TagSelector } from '@/components/notes/tag-selector'
 import { TopicSelector } from '@/components/notes/topic-selector'
 import { ManagementTimelineEditor } from '@/components/cases/management-timeline-editor'
-import { createCaseAction, createTagAction, createTopicAction } from '../actions'
+import { createCaseAction, createTagAction, createTopicAction, uploadCaseImageAction } from '../actions'
 import type { Topic, Tag, ManagementTimelineEntry, PatientGender } from '@/types/database'
-import { ROUTES } from '@/config/app'
+import { ROUTES, INVESTIGATION_CATEGORIES, IMAGING_MODALITIES } from '@/config/app'
+
+interface StagedFile {
+  id: string
+  file: File
+  category: string
+  modality: string
+  caption: string
+  preview: string | null
+}
 
 interface NewCaseFormProps {
   workspaceId: string
@@ -61,6 +70,12 @@ export function NewCaseForm({
   const [outcome, setOutcome] = useState('')
   const [learningPoints, setLearningPoints] = useState('')
 
+  // Staged investigation files
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
+  const [uploadCategory, setUploadCategory] = useState('radiology')
+  const [uploadModality, setUploadModality] = useState('XR')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const handleCreateTag = async (name: string) => {
     const result = await createTagAction(workspaceId, workspaceSlug, name)
     if (result.error) { toast.error(result.error); return null }
@@ -83,6 +98,29 @@ export function NewCaseForm({
       setIcdCodes((prev) => [...prev, code])
       setIcdInput('')
     }
+  }
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    const newStaged: StagedFile[] = Array.from(files).map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      category: uploadCategory,
+      modality: uploadModality,
+      caption: '',
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+    }))
+    setStagedFiles((prev) => [...prev, ...newStaged])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeStagedFile = (id: string) => {
+    setStagedFiles((prev) => {
+      const file = prev.find((f) => f.id === id)
+      if (file?.preview) URL.revokeObjectURL(file.preview)
+      return prev.filter((f) => f.id !== id)
+    })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,6 +147,26 @@ export function NewCaseForm({
 
       const result = await createCaseAction(workspaceId, workspaceSlug, fd)
       if (result.error) { toast.error(result.error); return }
+
+      // Upload staged files after case creation
+      if (stagedFiles.length > 0) {
+        toast.info(`Uploading ${stagedFiles.length} file(s)…`)
+        const uploadResults = await Promise.allSettled(
+          stagedFiles.map(async (sf) => {
+            const uploadFd = new FormData()
+            uploadFd.set('file', sf.file)
+            uploadFd.set('category', sf.category)
+            uploadFd.set('modality', sf.modality)
+            if (sf.caption) uploadFd.set('caption', sf.caption)
+            return uploadCaseImageAction(result.caseId!, workspaceId, workspaceSlug, uploadFd)
+          })
+        )
+        const failed = uploadResults.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error))
+        if (failed.length > 0) {
+          toast.warning(`${failed.length} file(s) failed to upload. You can re-upload from the case detail page.`)
+        }
+      }
+
       toast.success('Case created')
       router.push(ROUTES.caseDetail(workspaceSlug, result.caseId!))
     })
@@ -209,7 +267,7 @@ export function NewCaseForm({
             </div>
           </section>
 
-          {/* ── SECTION: Clinical ── */}
+          {/* ── SECTION: Clinical Details ── */}
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Clinical Details</h2>
@@ -219,13 +277,117 @@ export function NewCaseForm({
               { label: 'Presentation', value: presentation, setter: setPresentation, placeholder: 'Chief complaint and initial presentation…' },
               { label: 'History', value: history, setter: setHistory, placeholder: 'History of presenting illness, past medical history…' },
               { label: 'Examination', value: examination, setter: setExamination, placeholder: 'Vital signs, physical examination findings…' },
-              { label: 'Investigations', value: investigations, setter: setInvestigations, placeholder: 'Lab results, imaging, ECG, other investigations…' },
             ].map(({ label, value, setter, placeholder }) => (
               <div key={label} className="space-y-1.5">
                 <Label className="text-xs">{label}</Label>
                 <Textarea value={value} onChange={(e) => setter(e.target.value)} placeholder={placeholder} className="min-h-[100px] text-sm resize-y" />
               </div>
             ))}
+          </section>
+
+          {/* ── SECTION: Investigations & Imaging ── */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Investigations & Imaging</h2>
+              <Separator className="flex-1" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Investigation Summary</Label>
+              <Textarea
+                value={investigations}
+                onChange={(e) => setInvestigations(e.target.value)}
+                placeholder="Summarize key lab results, imaging findings, ECG interpretation…"
+                className="min-h-[100px] text-sm resize-y"
+              />
+            </div>
+
+            {/* File upload area */}
+            <div className="border border-dashed border-border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Upload Lab Reports, Imaging & Clinical Photos</Label>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Category</Label>
+                  <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                    <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {INVESTIGATION_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Modality</Label>
+                  <Select value={uploadModality} onValueChange={setUploadModality}>
+                    <SelectTrigger className="h-8 text-xs w-[120px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {IMAGING_MODALITIES.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                    className="hidden"
+                    onChange={handleFilesSelected}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-3 w-3" /> Choose Files
+                  </Button>
+                </div>
+              </div>
+
+              {/* Staged files preview */}
+              {stagedFiles.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {stagedFiles.map((sf) => (
+                    <div key={sf.id} className="relative border border-border rounded-md p-2 group">
+                      <button
+                        type="button"
+                        onClick={() => removeStagedFile(sf.id)}
+                        className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </button>
+                      {sf.preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={sf.preview} alt={sf.file.name} className="w-full h-20 object-cover rounded" />
+                      ) : (
+                        <div className="w-full h-20 bg-muted/50 rounded flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <p className="text-[10px] truncate mt-1 text-muted-foreground">{sf.file.name}</p>
+                      <div className="flex gap-1 mt-0.5">
+                        <span className="text-[9px] bg-muted px-1 rounded">{INVESTIGATION_CATEGORIES.find((c) => c.value === sf.category)?.label}</span>
+                        <span className="text-[9px] bg-muted px-1 rounded">{sf.modality}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {stagedFiles.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No files added yet. Upload images, PDFs, or lab reports.
+                </p>
+              )}
+            </div>
           </section>
 
           {/* ── SECTION: Management Timeline ── */}

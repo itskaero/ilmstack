@@ -34,6 +34,7 @@ export const ROUTES = {
   settingsMembers: (slug: string) => `/${slug}/settings/members`,
   settingsBranding: (slug: string) => `/${slug}/settings/branding`,
   settingsAudit: (slug: string) => `/${slug}/settings/audit`,
+  profile: (slug: string, userId: string) => `/${slug}/profile/${userId}`,
 } as const
 
 export const STORAGE_BUCKETS = {
@@ -85,6 +86,15 @@ export const ROLE_DESCRIPTIONS: Record<string, string> = {
   contributor: 'Can create and edit their own notes and cases',
   viewer: 'Read-only access to published content',
 } as const
+
+export const INVESTIGATION_CATEGORIES = [
+  { value: 'lab_results', label: 'Lab Results' },
+  { value: 'radiology', label: 'Radiology' },
+  { value: 'clinical_photos', label: 'Clinical Photos' },
+  { value: 'ecg_other', label: 'ECG / Other' },
+] as const
+
+export type InvestigationCategory = (typeof INVESTIGATION_CATEGORIES)[number]['value']
 
 export const IMAGING_MODALITIES = [
   'XR',

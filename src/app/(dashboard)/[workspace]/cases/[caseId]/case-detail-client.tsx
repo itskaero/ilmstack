@@ -32,9 +32,10 @@ import {
   updateCaseAction, deleteCaseAction, updateCaseStatusAction,
   createTagAction, createTopicAction,
 } from '../actions'
+import { GrowthChartEditor } from '@/components/cases/growth-chart-editor'
 import type {
   CaseWithRelations, Topic, Tag, CaseStatus,
-  WorkspaceRole, Profile, ManagementTimelineEntry, PatientGender,
+  WorkspaceRole, Profile, ManagementTimelineEntry, PatientGender, GrowthData,
 } from '@/types/database'
 import { ROUTES } from '@/config/app'
 
@@ -89,6 +90,7 @@ export function CaseDetailClient({
   const [managementTimeline, setManagementTimeline] = useState<ManagementTimelineEntry[]>(initialCase.management_timeline ?? [])
   const [outcome, setOutcome] = useState(initialCase.outcome ?? '')
   const [learningPoints, setLearningPoints] = useState(initialCase.learning_points ?? '')
+  const [growthData, setGrowthData] = useState<GrowthData | null>((initialCase.growth_data as GrowthData | null) ?? null)
   const [topics, setTopics] = useState(initialTopics)
   const [allTags, setAllTags] = useState(initialTags)
 
@@ -131,6 +133,7 @@ export function CaseDetailClient({
       fd.set('management_timeline', JSON.stringify(managementTimeline))
       if (outcome) fd.set('outcome', outcome)
       if (learningPoints) fd.set('learning_points', learningPoints)
+      fd.set('growth_data', JSON.stringify(growthData))
 
       const result = await updateCaseAction(caseData.id, workspaceId, workspaceSlug, fd)
       if (result.error) { toast.error(result.error); return }
@@ -257,15 +260,16 @@ export function CaseDetailClient({
 
           {/* Tabs */}
           <Tabs defaultValue="clinical">
-            <TabsList className="mb-6">
+            <TabsList className="mb-6 flex-wrap h-auto gap-1">
               <TabsTrigger value="clinical">Clinical Details</TabsTrigger>
-              <TabsTrigger value="management">Management Timeline</TabsTrigger>
+              <TabsTrigger value="investigations">Investigations ({caseData.imaging.length})</TabsTrigger>
+              <TabsTrigger value="management">Management</TabsTrigger>
               <TabsTrigger value="outcome">Outcome & Learning</TabsTrigger>
-              <TabsTrigger value="imaging">Imaging ({caseData.imaging.length})</TabsTrigger>
+              <TabsTrigger value="growth">Growth Charts</TabsTrigger>
               {isEditing && <TabsTrigger value="meta">Metadata</TabsTrigger>}
             </TabsList>
 
-            {/* Clinical */}
+            {/* Clinical — Presentation, History, Examination */}
             <TabsContent value="clinical" className="space-y-6">
               {isEditing ? (
                 <>
@@ -273,7 +277,6 @@ export function CaseDetailClient({
                     { label: 'Presentation', value: presentation, setter: setPresentation },
                     { label: 'History', value: history, setter: setHistory },
                     { label: 'Examination', value: examination, setter: setExamination },
-                    { label: 'Investigations', value: investigations, setter: setInvestigations },
                   ].map(({ label, value, setter }) => (
                     <div key={label} className="space-y-1.5">
                       <Label className="text-xs">{label}</Label>
@@ -287,18 +290,46 @@ export function CaseDetailClient({
                     { label: 'Presentation', value: caseData.presentation },
                     { label: 'History', value: caseData.history },
                     { label: 'Examination', value: caseData.examination },
-                    { label: 'Investigations', value: caseData.investigations },
                   ].map(({ label, value }) => value ? (
                     <div key={label}>
                       <h3 className="text-sm font-semibold mb-1.5">{label}</h3>
                       <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{value}</p>
                     </div>
                   ) : null)}
-                  {!caseData.presentation && !caseData.history && !caseData.examination && !caseData.investigations && (
+                  {!caseData.presentation && !caseData.history && !caseData.examination && (
                     <p className="text-sm text-muted-foreground italic">No clinical details recorded yet.</p>
                   )}
                 </>
               )}
+            </TabsContent>
+
+            {/* Investigations & Imaging — merged tab */}
+            <TabsContent value="investigations" className="space-y-6">
+              {/* Investigation notes (text summary) */}
+              {isEditing ? (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Investigation Notes</Label>
+                  <Textarea value={investigations} onChange={(e) => setInvestigations(e.target.value)} className="min-h-[80px] text-sm resize-y" placeholder="Summary of investigation findings..." />
+                </div>
+              ) : (
+                caseData.investigations && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1.5">Investigation Notes</h3>
+                    <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{caseData.investigations}</p>
+                  </div>
+                )
+              )}
+              <Separator />
+              {/* Upload gallery with categories */}
+              <ImagingGallery
+                images={caseData.imaging}
+                caseId={caseData.id}
+                workspaceId={workspaceId}
+                workspaceSlug={workspaceSlug}
+                role={role}
+                authorId={caseData.author_id}
+                currentUserId={currentUser.id}
+              />
             </TabsContent>
 
             {/* Management */}
@@ -322,16 +353,13 @@ export function CaseDetailClient({
               )}
             </TabsContent>
 
-            {/* Imaging */}
-            <TabsContent value="imaging">
-              <ImagingGallery
-                images={caseData.imaging}
-                caseId={caseData.id}
-                workspaceId={workspaceId}
-                workspaceSlug={workspaceSlug}
-                role={role}
-                authorId={caseData.author_id}
-                currentUserId={currentUser.id}
+            {/* Growth Charts */}
+            <TabsContent value="growth">
+              <GrowthChartEditor
+                growthData={isEditing ? growthData : (caseData.growth_data as GrowthData | null)}
+                onChange={setGrowthData}
+                readOnly={!isEditing}
+                patientGender={caseData.patient_gender}
               />
             </TabsContent>
 

@@ -11,6 +11,7 @@ import {
   updateCaseStatus,
   addCaseImage,
   deleteCaseImage,
+  updateCaseImageFindings,
 } from '@/services/cases.service'
 import { createTopic, createTag } from '@/services/notes.service'
 import type { CaseStatus } from '@/types/database'
@@ -74,6 +75,7 @@ export async function createCaseAction(
     specialty: (formData.get('specialty') as string) || null,
     diagnosis: (formData.get('diagnosis') as string) || null,
     icd_codes: JSON.parse((formData.get('icd_codes') as string) || '[]'),
+    growth_data: JSON.parse((formData.get('growth_data') as string) || 'null'),
   }
 
   const parsed = createCaseSchema.safeParse(raw)
@@ -114,6 +116,7 @@ export async function updateCaseAction(
     specialty: (formData.get('specialty') as string) || null,
     diagnosis: (formData.get('diagnosis') as string) || null,
     icd_codes: JSON.parse((formData.get('icd_codes') as string) || '[]'),
+    growth_data: JSON.parse((formData.get('growth_data') as string) || 'null'),
   }
 
   const parsed = updateCaseSchema.safeParse(raw)
@@ -179,9 +182,9 @@ export async function uploadCaseImageAction(
   const maxSize = 10 * 1024 * 1024 // 10 MB
   if (file.size > maxSize) return { error: 'File size must be under 10MB' }
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
   if (!allowedTypes.includes(file.type)) {
-    return { error: 'Only JPEG, PNG, WebP and GIF images are allowed' }
+    return { error: 'Only JPEG, PNG, WebP, GIF and PDF files are allowed' }
   }
 
   const ext = file.name.split('.').pop() ?? 'jpg'
@@ -199,6 +202,7 @@ export async function uploadCaseImageAction(
 
   const caption = (formData.get('caption') as string) || null
   const modality = (formData.get('modality') as string) || null
+  const category = (formData.get('category') as string) || 'radiology'
 
   await addCaseImage(supabase, caseId, workspaceId, user.id, {
     file_url: urlData.publicUrl,
@@ -207,8 +211,27 @@ export async function uploadCaseImageAction(
     file_size: file.size,
     caption,
     modality,
+    category,
   })
 
+  revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
+  return { error: null }
+}
+
+// ── Update Image Findings ─────────────────────────────────────
+
+export async function updateImageFindingsAction(
+  imageId: string,
+  workspaceId: string,
+  caseId: string,
+  workspaceSlug: string,
+  findings: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  await updateCaseImageFindings(supabase, imageId, workspaceId, findings || null)
   revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
   return { error: null }
 }

@@ -135,7 +135,7 @@ export async function updateCase(
   const fields = [
     'title', 'topic_id', 'presentation', 'history', 'examination',
     'investigations', 'management_timeline', 'outcome', 'learning_points',
-    'patient_age_range', 'patient_gender', 'specialty', 'diagnosis', 'icd_codes',
+    'patient_age_range', 'patient_gender', 'specialty', 'diagnosis', 'icd_codes', 'growth_data',
   ] as const
   for (const field of fields) {
     if (caseData[field] !== undefined) updates[field] = caseData[field]
@@ -216,6 +216,8 @@ export async function addCaseImage(
     file_size: number
     caption?: string | null
     modality?: string | null
+    category?: string
+    findings?: string | null
     sort_order?: number
   }
 ): Promise<CaseImagingRow | null> {
@@ -240,6 +242,18 @@ export async function deleteCaseImage(
   await supabase
     .from('case_imaging')
     .delete()
+    .eq('id', imageId)
+    .eq('workspace_id', workspaceId)
+}
+
+export async function updateCaseImageFindings(
+  supabase: SupabaseClient,
+  imageId: string,
+  workspaceId: string,
+  findings: string | null
+): Promise<void> {
+  await (supabase.from('case_imaging') as any)
+    .update({ findings })
     .eq('id', imageId)
     .eq('workspace_id', workspaceId)
 }
