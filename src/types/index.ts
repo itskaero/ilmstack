@@ -101,6 +101,7 @@ export type StorageBucket =
   | 'journal-pdfs'
   | 'workspace-assets'
   | 'avatars'
+  | 'workspace-logos'
 
 // ── Navigation ────────────────────────────────────────────────
 

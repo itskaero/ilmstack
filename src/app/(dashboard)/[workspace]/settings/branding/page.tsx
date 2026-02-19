@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Building2, Camera } from 'lucide-react'
 import { useWorkspace } from '@/contexts/workspace-context'
-import { updateWorkspaceAction } from '../actions'
+import { updateWorkspaceAction, uploadWorkspaceLogoAction } from '../actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +33,28 @@ export default function BrandingSettingsPage() {
   )
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const [logoUrl, setLogoUrl] = useState<string | null>(workspace.logo_url)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingLogo(true)
+    setMessage(null)
+    const fd = new FormData()
+    fd.set('logo', file)
+    const result = await uploadWorkspaceLogoAction(workspace.id, slug, fd)
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
+    } else {
+      setLogoUrl(result.url ?? null)
+      setMessage({ type: 'success', text: 'Logo updated.' })
+    }
+    setIsUploadingLogo(false)
+    if (logoInputRef.current) logoInputRef.current.value = ''
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -67,6 +89,47 @@ export default function BrandingSettingsPage() {
         </Alert>
       )}
 
+      {/* Logo */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div>
+            <Label>Workspace logo</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">JPEG, PNG or WebP · max 2 MB</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="Workspace logo" className="w-full h-full object-cover" />
+              ) : (
+                <Building2 className="h-7 w-7 text-muted-foreground" />
+              )}
+            </div>
+            {isAdmin && (
+              <label className="cursor-pointer">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={handleLogoChange}
+                  disabled={isUploadingLogo}
+                />
+                <Button type="button" variant="outline" size="sm" disabled={isUploadingLogo} asChild>
+                  <span>
+                    {isUploadingLogo
+                      ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Uploading…</>
+                      : <><Camera className="h-3.5 w-3.5 mr-1.5" />Upload logo</>
+                    }
+                  </span>
+                </Button>
+              </label>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Colour */}
       <Card className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-3">
@@ -113,10 +176,14 @@ export default function BrandingSettingsPage() {
             <div className="rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: primaryColor }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold overflow-hidden"
+                  style={{ backgroundColor: logoUrl ? undefined : primaryColor }}
                 >
-                  {workspace.name.slice(0, 2).toUpperCase()}
+                  {logoUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+                    : workspace.name.slice(0, 2).toUpperCase()
+                  }
                 </div>
                 <span className="font-semibold">{workspace.name}</span>
               </div>

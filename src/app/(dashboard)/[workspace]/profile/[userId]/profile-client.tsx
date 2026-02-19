@@ -1,17 +1,24 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { FileText, Stethoscope, Calendar, Pencil, Save, X, Building2 } from 'lucide-react'
+import { FileText, Stethoscope, Calendar, Pencil, Save, X, Building2, Camera, Loader2 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { initials } from '@/lib/utils'
-import { ROUTES, ROLE_LABELS, NOTE_STATUS_LABELS, CASE_STATUS_LABELS } from '@/config/app'
-import { updateProfileAction } from '../actions'
+import { ROUTES, ROLE_LABELS, NOTE_STATUS_LABELS, CASE_STATUS_LABELS, CLINICAL_ROLES, RESIDENT_YEARS } from '@/config/app'
+import { updateProfileAction, uploadAvatarAction } from '../actions'
 import type { Profile } from '@/types'
 import type { WorkspaceContributions } from './page'
 
@@ -31,11 +38,16 @@ export function ProfileClient({
   const [isEditing, setIsEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [selectedWsId, setSelectedWsId] = useState<string | 'all'>('all')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const [fullName, setFullName] = useState(profile.full_name ?? '')
   const [title, setTitle] = useState(profile.title ?? '')
   const [specialty, setSpecialty] = useState(profile.specialty ?? '')
   const [bio, setBio] = useState(profile.bio ?? '')
+  const [clinicalRole, setClinicalRole] = useState<string>(profile.clinical_role ?? 'other')
+  const [residentYear, setResidentYear] = useState<string>(profile.resident_year ? String(profile.resident_year) : '')
 
   const displayName = profile.full_name ?? profile.email
 
@@ -53,6 +65,19 @@ export function ProfileClient({
     return contributions.filter((c) => c.workspaceId === selectedWsId)
   }, [contributions, selectedWsId])
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingAvatar(true)
+    const fd = new FormData()
+    fd.set('avatar', file)
+    fd.set('slug', currentWorkspaceSlug)
+    const result = await uploadAvatarAction(fd)
+    if (result.url) setAvatarUrl(result.url)
+    setIsUploadingAvatar(false)
+    if (avatarInputRef.current) avatarInputRef.current.value = ''
+  }
+
   function handleSave() {
     startTransition(async () => {
       const fd = new FormData()
@@ -60,6 +85,8 @@ export function ProfileClient({
       fd.set('title', title)
       fd.set('specialty', specialty)
       fd.set('bio', bio)
+      fd.set('clinical_role', clinicalRole)
+      if (clinicalRole === 'resident' && residentYear) fd.set('resident_year', residentYear)
       fd.set('slug', currentWorkspaceSlug)
       const result = await updateProfileAction(fd)
       if (result.success) setIsEditing(false)
@@ -71,6 +98,8 @@ export function ProfileClient({
     setTitle(profile.title ?? '')
     setSpecialty(profile.specialty ?? '')
     setBio(profile.bio ?? '')
+    setClinicalRole(profile.clinical_role ?? 'other')
+    setResidentYear(profile.resident_year ? String(profile.resident_year) : '')
     setIsEditing(false)
   }
 
@@ -78,12 +107,36 @@ export function ProfileClient({
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Profile Header */}
       <div className="flex items-start gap-5">
-        <Avatar className="w-20 h-20 flex-shrink-0">
-          <AvatarImage src={profile.avatar_url ?? undefined} alt={displayName} />
-          <AvatarFallback className="text-xl bg-primary/10 text-primary">
-            {initials(displayName)}
-          </AvatarFallback>
-        </Avatar>
+        {isOwnProfile ? (
+          <label className="relative w-20 h-20 flex-shrink-0 cursor-pointer group">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={handleAvatarChange}
+              disabled={isUploadingAvatar}
+            />
+            <Avatar className="w-20 h-20">
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+              <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                {isUploadingAvatar ? <Loader2 className="h-6 w-6 animate-spin" /> : initials(displayName)}
+              </AvatarFallback>
+            </Avatar>
+            {!isUploadingAvatar && (
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+            )}
+          </label>
+        ) : (
+          <Avatar className="w-20 h-20 flex-shrink-0">
+            <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+            <AvatarFallback className="text-xl bg-primary/10 text-primary">
+              {initials(displayName)}
+            </AvatarFallback>
+          </Avatar>
+        )}
 
         <div className="flex-1 min-w-0">
           {isEditing ? (
@@ -105,6 +158,34 @@ export function ProfileClient({
               <div className="space-y-1">
                 <Label className="text-xs">Bio</Label>
                 <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} className="text-sm resize-none" placeholder="Short bio..." />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Clinical Role</Label>
+                  <Select value={clinicalRole} onValueChange={setClinicalRole}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CLINICAL_ROLES.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {clinicalRole === 'resident' && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Resident Year</Label>
+                    <Select value={residentYear} onValueChange={setResidentYear}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RESIDENT_YEARS.map((y) => (
+                          <SelectItem key={y} value={String(y)}>R{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleSave} disabled={isPending} className="h-7 text-xs gap-1">
@@ -136,6 +217,14 @@ export function ProfileClient({
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">{profile.email}</p>
+              {profile.clinical_role && profile.clinical_role !== 'other' && (
+                <div className="mt-1">
+                  <Badge variant="secondary" className="text-[11px]">
+                    {CLINICAL_ROLES.find((r) => r.value === profile.clinical_role)?.label ?? profile.clinical_role}
+                    {profile.clinical_role === 'resident' && profile.resident_year ? ` · R${profile.resident_year}` : ''}
+                  </Badge>
+                </div>
+              )}
               {profile.bio && (
                 <p className="text-sm mt-2 text-muted-foreground">{profile.bio}</p>
               )}

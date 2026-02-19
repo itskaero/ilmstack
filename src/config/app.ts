@@ -27,6 +27,9 @@ export const ROUTES = {
   cases: (slug: string) => `/${slug}/cases`,
   caseDetail: (slug: string, caseId: string) => `/${slug}/cases/${caseId}`,
   newCase: (slug: string) => `/${slug}/cases/new`,
+  guidelines: (slug: string) => `/${slug}/guidelines`,
+  guidelineDetail: (slug: string, guidelineId: string) => `/${slug}/guidelines/${guidelineId}`,
+  newGuideline: (slug: string) => `/${slug}/guidelines/new`,
   review: (slug: string) => `/${slug}/review`,
   journal: (slug: string) => `/${slug}/journal`,
   journalDetail: (slug: string, journalId: string) => `/${slug}/journal/${journalId}`,
@@ -145,3 +148,30 @@ export const MEDICAL_SPECIALTIES = [
 
 export type ImagingModality = (typeof IMAGING_MODALITIES)[number]
 export type MedicalSpecialty = (typeof MEDICAL_SPECIALTIES)[number]
+
+export const GUIDELINE_CATEGORIES = [
+  { value: 'antibiotic', label: 'Antibiotic Guidelines' },
+  { value: 'management', label: 'Disease Management' },
+  { value: 'protocol', label: 'Clinical Protocol' },
+  { value: 'dosing', label: 'Dosing Reference' },
+  { value: 'nursing', label: 'Nursing Protocol' },
+  { value: 'general', label: 'General' },
+] as const
+
+export const CLINICAL_ROLES = [
+  { value: 'intern', label: 'Intern' },
+  { value: 'resident', label: 'Resident' },
+  { value: 'senior_registrar', label: 'Senior Registrar' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'specialist', label: 'Specialist' },
+  { value: 'other', label: 'Other' },
+] as const
+
+export const GUIDELINE_MIN_EDIT_ROLES = [
+  { value: 'any_editor', label: 'Any Editor' },
+  { value: 'r3_resident_plus', label: 'R3+ Resident or above' },
+  { value: 'senior_registrar', label: 'Senior Registrar or above' },
+  { value: 'consultant_only', label: 'Consultant / Specialist only' },
+] as const
+
+export const RESIDENT_YEARS = [1, 2, 3, 4, 5] as const

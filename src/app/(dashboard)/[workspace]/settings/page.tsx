@@ -4,13 +4,14 @@ import { useState, useTransition } from 'react'
 import { useParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { useWorkspace } from '@/contexts/workspace-context'
-import { updateWorkspaceAction } from './actions'
+import { updateWorkspaceAction, updateWorkspaceSpecialtiesAction } from './actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { MEDICAL_SPECIALTIES } from '@/config/app'
 
 export default function GeneralSettingsPage() {
   const params = useParams()
@@ -22,6 +23,28 @@ export default function GeneralSettingsPage() {
   const [description, setDescription] = useState(workspace.description ?? '')
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(workspace.specialties ?? [])
+  const [isSpecialtiesPending, startSpecialtiesTransition] = useTransition()
+  const [specialtiesMessage, setSpecialtiesMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  function toggleSpecialty(s: string) {
+    setSelectedSpecialties((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    )
+  }
+
+  function handleSaveSpecialties() {
+    setSpecialtiesMessage(null)
+    startSpecialtiesTransition(async () => {
+      const result = await updateWorkspaceSpecialtiesAction(workspace.id, slug, selectedSpecialties)
+      if (result.error) {
+        setSpecialtiesMessage({ type: 'error', text: result.error })
+      } else {
+        setSpecialtiesMessage({ type: 'success', text: 'Specialties saved.' })
+      }
+    })
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -104,6 +127,62 @@ export default function GeneralSettingsPage() {
             </div>
           )}
         </form>
+      </Card>
+
+      {/* Specialties */}
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium">Specialties</h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Tag the medical specialties this workspace covers. Purely informational.
+            </p>
+          </div>
+
+          {specialtiesMessage && (
+            <Alert variant={specialtiesMessage.type === 'success' ? 'success' : 'destructive'}>
+              <AlertDescription>{specialtiesMessage.text}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            {MEDICAL_SPECIALTIES.map((s) => {
+              const active = selectedSpecialties.includes(s)
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => isAdmin && toggleSpecialty(s)}
+                  disabled={!isAdmin || isSpecialtiesPending}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    active
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                  } disabled:opacity-60 disabled:cursor-default`}
+                >
+                  {s}
+                </button>
+              )
+            })}
+          </div>
+
+          {isAdmin && (
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-muted-foreground">
+                {selectedSpecialties.length} selected
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveSpecialties}
+                disabled={isSpecialtiesPending}
+              >
+                {isSpecialtiesPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Save specialties
+              </Button>
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card className="p-6">

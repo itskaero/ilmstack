@@ -12,6 +12,7 @@ import {
   logAuditEvent,
 } from '@/services/workspace.service'
 import { updateWorkspaceSchema, inviteMemberSchema } from '@/lib/validations/workspace'
+import { sendInvitationEmail } from '@/lib/email'
 import type { WorkspaceRole, WorkspaceMember, WorkspaceInvitationRow, AuditLogRow, Profile } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -224,19 +225,45 @@ export async function inviteMemberAction(
     return { error: 'An invitation has already been sent to this email.' }
   }
 
-  // Use admin client to insert invitation (bypasses RLS)
+  // Use admin client to insert invitation (bypasses RLS) and get the token back
   const adminClient = createAdminClient()
-  const { error } = await (adminClient.from('workspace_invitations') as any).insert({
-    workspace_id: workspaceId,
-    email: parsed.data.email,
-    role: parsed.data.role,
-    invited_by: user.id,
-    status: 'pending',
-  })
+  const { data: invData, error } = await (adminClient.from('workspace_invitations') as any)
+    .insert({
+      workspace_id: workspaceId,
+      email: parsed.data.email,
+      role: parsed.data.role,
+      invited_by: user.id,
+      status: 'pending',
+    })
+    .select('token')
+    .single()
 
   if (error) {
     console.error('[Settings] Invite error:', error)
-    return { error: 'Failed to send invitation.' }
+    return { error: 'Failed to create invitation.' }
+  }
+
+  // Fetch workspace name and inviter display name for the email
+  const [wsResult, inviterResult] = await Promise.all([
+    supabase.from('workspaces').select('name').eq('id', workspaceId).single(),
+    supabase.from('profiles').select('full_name, email').eq('id', user.id).single(),
+  ])
+
+  const workspaceName = (wsResult.data as any)?.name ?? 'IlmStack Health Workspace'
+  const inviterProfile = inviterResult.data as any
+  const inviterName = inviterProfile?.full_name ?? inviterProfile?.email ?? 'A workspace admin'
+
+  const { error: emailError } = await sendInvitationEmail({
+    to: parsed.data.email,
+    inviterName,
+    workspaceName,
+    role: parsed.data.role,
+    token: invData.token,
+  })
+
+  if (emailError) {
+    console.error('[Settings] Email send error:', emailError)
+    // Don't fail the action — invitation is saved, admin can share link manually
   }
 
   await logAuditEvent(supabase, {
@@ -277,6 +304,71 @@ export async function revokeInvitationAction(
   })
 
   revalidatePath(`/${slug}/settings/members`)
+  return { error: null }
+}
+
+// ── Workspace Logo Upload ─────────────────────────────────────
+
+export async function uploadWorkspaceLogoAction(
+  workspaceId: string,
+  slug: string,
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  const { supabase } = await requireAdmin(workspaceId)
+
+  const file = formData.get('logo') as File | null
+  if (!file || file.size === 0) return { error: 'No file provided' }
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(file.type)) return { error: 'Only JPEG, PNG or WebP images are allowed' }
+  if (file.size > 2 * 1024 * 1024) return { error: 'Image must be smaller than 2 MB' }
+
+  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+  const storagePath = `${workspaceId}/${Date.now()}.${ext}`
+
+  // Delete existing logo files for this workspace
+  const { data: existing } = await supabase.storage.from('workspace-logos').list(workspaceId)
+  if (existing && existing.length > 0) {
+    await supabase.storage.from('workspace-logos').remove(existing.map((f) => `${workspaceId}/${f.name}`))
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from('workspace-logos')
+    .upload(storagePath, file, { contentType: file.type, upsert: true })
+
+  if (uploadError) return { error: uploadError.message }
+
+  const { data: { publicUrl } } = supabase.storage.from('workspace-logos').getPublicUrl(storagePath)
+
+  const { error: dbError } = await (supabase as any)
+    .from('workspaces')
+    .update({ logo_url: publicUrl })
+    .eq('id', workspaceId)
+
+  if (dbError) return { error: dbError.message }
+
+  revalidatePath(`/${slug}/settings/branding`)
+  revalidatePath(`/${slug}`)
+  return { url: publicUrl }
+}
+
+// ── Workspace Specialties ─────────────────────────────────────
+
+export async function updateWorkspaceSpecialtiesAction(
+  workspaceId: string,
+  slug: string,
+  specialties: string[]
+): Promise<{ error: string | null }> {
+  const { supabase } = await requireAdmin(workspaceId)
+
+  const { error } = await (supabase as any)
+    .from('workspaces')
+    .update({ specialties })
+    .eq('id', workspaceId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/${slug}/settings`)
   return { error: null }
 }
 

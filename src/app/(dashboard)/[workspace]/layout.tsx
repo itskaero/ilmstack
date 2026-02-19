@@ -53,6 +53,8 @@ export default async function WorkspaceDashboardLayout({ children, params }: Pro
     specialty: null,
     title: null,
     bio: null,
+    clinical_role: 'other',
+    resident_year: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }

@@ -7,6 +7,7 @@ import {
   Stethoscope,
   ClipboardCheck,
   BookOpen,
+  BookMarked,
   Settings,
   X,
 } from 'lucide-react'
@@ -57,6 +58,11 @@ export function Sidebar({
       label: 'Cases',
       href: ROUTES.cases(slug),
       icon: Stethoscope,
+    },
+    {
+      label: 'Guidelines',
+      href: ROUTES.guidelines(slug),
+      icon: BookMarked,
     },
     {
       label: 'Review',

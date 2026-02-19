@@ -32,6 +32,9 @@ export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
 export type WorkspacePlan = 'free' | 'starter' | 'professional' | 'enterprise'
 export type ReviewPriority = 'low' | 'normal' | 'high' | 'urgent'
 export type PatientGender = 'male' | 'female' | 'other' | 'not_disclosed'
+export type ClinicalRole = 'intern' | 'resident' | 'senior_registrar' | 'consultant' | 'specialist' | 'other'
+export type GuidelineStatus = 'draft' | 'active' | 'archived'
+export type GuidelineMinEditRole = 'any_editor' | 'r3_resident_plus' | 'senior_registrar' | 'consultant_only'
 
 // ── Row Types (exact DB representation) ──────────────────────
 
@@ -43,6 +46,8 @@ export interface ProfileRow {
   specialty: string | null
   title: string | null
   bio: string | null
+  clinical_role: ClinicalRole
+  resident_year: number | null
   created_at: string
   updated_at: string
 }
@@ -54,6 +59,7 @@ export interface WorkspaceRow {
   description: string | null
   logo_url: string | null
   primary_color: string
+  specialties: string[]
   plan: WorkspacePlan
   settings: Json
   created_by: string
@@ -299,6 +305,33 @@ export interface AuditLogRow {
   created_at: string
 }
 
+export interface GuidelineRow {
+  id: string
+  workspace_id: string
+  title: string
+  content: string
+  category: string
+  specialty: string | null
+  status: GuidelineStatus
+  min_edit_clinical_role: GuidelineMinEditRole
+  version: number
+  created_by: string
+  updated_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface GuidelineVersionRow {
+  id: string
+  guideline_id: string
+  version_number: number
+  title: string
+  content: string
+  change_note: string | null
+  changed_by: string
+  created_at: string
+}
+
 // ── Enriched / Joined Types (app-layer) ──────────────────────
 
 export interface Profile extends ProfileRow {}
@@ -363,6 +396,15 @@ export interface JournalWithEntries extends JournalRow {
   generator: Profile
 }
 
+export interface GuidelineWithAuthor extends GuidelineRow {
+  author: Profile
+  updater: Profile
+}
+
+export interface GuidelineVersionWithAuthor extends GuidelineVersionRow {
+  changed_by_profile: Profile
+}
+
 export interface JournalEntryWithNote extends JournalEntryRow {
   note: NoteWithRelations
 }
@@ -410,6 +452,19 @@ export type CreateJournalInput = {
   period_year: number
   period_month: number
   editorial_note?: string
+}
+
+export type CreateGuidelineInput = {
+  title: string
+  content?: string
+  category?: string
+  specialty?: string | null
+  min_edit_clinical_role?: GuidelineMinEditRole
+}
+
+export type UpdateGuidelineInput = Partial<CreateGuidelineInput> & {
+  status?: GuidelineStatus
+  change_note?: string | null
 }
 
 export type CreateReviewRequestInput = {
@@ -515,6 +570,16 @@ export interface Database {
       audit_logs: {
         Row: AuditLogRow
         Insert: Omit<AuditLogRow, 'id' | 'created_at'>
+        Update: never
+      }
+      guidelines: {
+        Row: GuidelineRow
+        Insert: Omit<GuidelineRow, 'id' | 'created_at' | 'updated_at' | 'version'>
+        Update: Partial<Omit<GuidelineRow, 'id' | 'workspace_id' | 'created_by' | 'created_at'>>
+      }
+      guideline_versions: {
+        Row: GuidelineVersionRow
+        Insert: Omit<GuidelineVersionRow, 'id' | 'created_at'>
         Update: never
       }
     }
