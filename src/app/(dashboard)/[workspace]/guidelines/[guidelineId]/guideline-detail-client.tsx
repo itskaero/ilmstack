@@ -29,14 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { NoteEditorAdaptive } from '@/components/notes/note-editor'
 import { updateGuidelineAction, updateGuidelineStatusAction } from '../actions'
 import { ROUTES, GUIDELINE_CATEGORIES, GUIDELINE_MIN_EDIT_ROLES, MEDICAL_SPECIALTIES } from '@/config/app'
 import type { GuidelineWithAuthor, GuidelineVersionWithAuthor, GuidelineStatus } from '@/types/database'
-
-const MDEditor = dynamic(() => import('@uiw/react-md-editor'), {
-  ssr: false,
-  loading: () => <Skeleton className="h-96 w-full rounded-md" />,
-})
 
 const MarkdownPreview = dynamic(() => import('@uiw/react-markdown-preview'), {
   ssr: false,
@@ -269,24 +265,11 @@ export function GuidelineDetailClient({
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Content</Label>
-                <div data-color-mode="light" className="dark:hidden">
-                  <MDEditor
-                    value={editContent}
-                    onChange={(val) => setEditContent(val ?? '')}
-                    height={480}
-                    preview="live"
-                    visibleDragbar={false}
-                  />
-                </div>
-                <div data-color-mode="dark" className="hidden dark:block">
-                  <MDEditor
-                    value={editContent}
-                    onChange={(val) => setEditContent(val ?? '')}
-                    height={480}
-                    preview="live"
-                    visibleDragbar={false}
-                  />
-                </div>
+                <NoteEditorAdaptive
+                  value={editContent}
+                  onChange={setEditContent}
+                  height={480}
+                />
               </div>
 
               <div className="space-y-1.5">

@@ -3,12 +3,11 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import dynamic from 'next/dynamic'
 import { ArrowLeft, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
+import { NoteEditorAdaptive } from '@/components/notes/note-editor'
 import {
   Select,
   SelectContent,
@@ -19,11 +18,6 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { createGuidelineAction } from '../actions'
 import { ROUTES, GUIDELINE_CATEGORIES, GUIDELINE_MIN_EDIT_ROLES, MEDICAL_SPECIALTIES } from '@/config/app'
-
-const MDEditor = dynamic(() => import('@uiw/react-md-editor'), {
-  ssr: false,
-  loading: () => <Skeleton className="h-96 w-full rounded-md" />,
-})
 
 interface Props {
   workspaceId: string
@@ -142,26 +136,12 @@ export function NewGuidelineForm({ workspaceId, workspaceSlug }: Props) {
           {/* Content editor */}
           <div className="space-y-1.5">
             <Label className="text-xs">Content</Label>
-            <div data-color-mode="light" className="dark:hidden">
-              <MDEditor
-                value={content}
-                onChange={(val) => setContent(val ?? '')}
-                height={500}
-                preview="live"
-                textareaProps={{ placeholder: 'Write the guideline content in Markdown…\n\n## Overview\n\n## Indications\n\n## Protocol\n\n## References' }}
-                visibleDragbar={false}
-              />
-            </div>
-            <div data-color-mode="dark" className="hidden dark:block">
-              <MDEditor
-                value={content}
-                onChange={(val) => setContent(val ?? '')}
-                height={500}
-                preview="live"
-                textareaProps={{ placeholder: 'Write the guideline content in Markdown…' }}
-                visibleDragbar={false}
-              />
-            </div>
+            <NoteEditorAdaptive
+              value={content}
+              onChange={setContent}
+              placeholder="Start with an Overview, then Indications, Protocol, and References…"
+              height={500}
+            />
           </div>
 
           <div className="pb-12" />

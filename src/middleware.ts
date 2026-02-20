@@ -8,6 +8,7 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware'
 
 // Routes accessible without authentication
 const PUBLIC_ROUTES = [
+  '/',              // public landing page
   '/login',
   '/register',
   '/magic-link',
@@ -16,7 +17,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/callback',
 ]
 
-// Routes that should redirect authenticated users to their workspace
+// Routes that should redirect authenticated users away (to the home dashboard)
 const AUTH_ROUTES = ['/login', '/register', '/magic-link']
 
 export async function middleware(request: NextRequest) {
@@ -39,9 +40,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect authenticated users away from auth pages to their workspace
+  // Redirect authenticated users away from auth pages to the home dashboard
   if (user && AUTH_ROUTES.some((route) => pathname === route)) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/home', request.url))
   }
 
   return response

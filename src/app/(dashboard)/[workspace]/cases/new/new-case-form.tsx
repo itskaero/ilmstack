@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeft, Save, Plus, X, Upload, FileText, Image as ImageIcon, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Upload, FileText, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,8 +19,9 @@ import { Separator } from '@/components/ui/separator'
 import { TagSelector } from '@/components/notes/tag-selector'
 import { TopicSelector } from '@/components/notes/topic-selector'
 import { ManagementTimelineEditor } from '@/components/cases/management-timeline-editor'
+import { GrowthChartEditor } from '@/components/cases/growth-chart-editor'
 import { createCaseAction, createTagAction, createTopicAction, uploadCaseImageAction } from '../actions'
-import type { Topic, Tag, ManagementTimelineEntry, PatientGender } from '@/types/database'
+import type { Topic, Tag, ManagementTimelineEntry, PatientGender, GrowthData } from '@/types/database'
 import { ROUTES, INVESTIGATION_CATEGORIES, IMAGING_MODALITIES } from '@/config/app'
 
 interface StagedFile {
@@ -54,8 +55,6 @@ export function NewCaseForm({
   const [diagnosis, setDiagnosis] = useState('')
   const [patientAgeRange, setPatientAgeRange] = useState('')
   const [patientGender, setPatientGender] = useState<PatientGender | ''>('')
-  const [icdCodes, setIcdCodes] = useState<string[]>([])
-  const [icdInput, setIcdInput] = useState('')
   const [topicId, setTopicId] = useState<string | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [topics, setTopics] = useState(initialTopics)
@@ -69,6 +68,7 @@ export function NewCaseForm({
   const [managementTimeline, setManagementTimeline] = useState<ManagementTimelineEntry[]>([])
   const [outcome, setOutcome] = useState('')
   const [learningPoints, setLearningPoints] = useState('')
+  const [growthData, setGrowthData] = useState<GrowthData | null>(null)
 
   // Staged investigation files
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
@@ -90,14 +90,6 @@ export function NewCaseForm({
     const newTopic: Topic = { id: result.topicId!, name, slug: name.toLowerCase().replace(/\s+/g, '-'), workspace_id: workspaceId, parent_id: null, description: null, color: null, icon: null, sort_order: 0, created_by: '', created_at: new Date().toISOString() }
     setTopics((prev) => [...prev, newTopic])
     return newTopic
-  }
-
-  const addIcdCode = () => {
-    const code = icdInput.trim().toUpperCase()
-    if (code && !icdCodes.includes(code)) {
-      setIcdCodes((prev) => [...prev, code])
-      setIcdInput('')
-    }
   }
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +126,7 @@ export function NewCaseForm({
       if (diagnosis) fd.set('diagnosis', diagnosis)
       if (patientAgeRange) fd.set('patient_age_range', patientAgeRange)
       if (patientGender) fd.set('patient_gender', patientGender)
-      fd.set('icd_codes', JSON.stringify(icdCodes))
+      fd.set('icd_codes', '[]')
       if (topicId) fd.set('topic_id', topicId)
       selectedTagIds.forEach((id) => fd.append('tag_ids', id))
       if (presentation) fd.set('presentation', presentation)
@@ -144,6 +136,7 @@ export function NewCaseForm({
       fd.set('management_timeline', JSON.stringify(managementTimeline))
       if (outcome) fd.set('outcome', outcome)
       if (learningPoints) fd.set('learning_points', learningPoints)
+      fd.set('growth_data', JSON.stringify(growthData))
 
       const result = await createCaseAction(workspaceId, workspaceSlug, fd)
       if (result.error) { toast.error(result.error); return }
@@ -232,26 +225,6 @@ export function NewCaseForm({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            {/* ICD codes */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">ICD Codes</Label>
-              <div className="flex gap-2">
-                <Input value={icdInput} onChange={(e) => setIcdInput(e.target.value)} placeholder="e.g. I21.0" className="h-8 text-sm flex-1"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addIcdCode() } }} />
-                <Button type="button" variant="outline" size="sm" className="h-8" onClick={addIcdCode}>Add</Button>
-              </div>
-              {icdCodes.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {icdCodes.map((code) => (
-                    <span key={code} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded border border-border">
-                      {code}
-                      <button type="button" onClick={() => setIcdCodes((p) => p.filter((c) => c !== code))}><X className="h-3 w-3 text-muted-foreground hover:text-destructive" /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Topic & Tags */}
@@ -397,6 +370,20 @@ export function NewCaseForm({
               <Separator className="flex-1" />
             </div>
             <ManagementTimelineEditor entries={managementTimeline} onChange={setManagementTimeline} />
+          </section>
+
+          {/* ── SECTION: Growth Charts ── */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Growth Charts</h2>
+              <Separator className="flex-1" />
+            </div>
+            <GrowthChartEditor
+              growthData={growthData}
+              onChange={setGrowthData}
+              readOnly={false}
+              patientGender={patientGender || null}
+            />
           </section>
 
           {/* ── SECTION: Outcome ── */}

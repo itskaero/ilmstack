@@ -38,7 +38,7 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
   if (error) return { error: error.message }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect('/home')
 }
 
 export async function registerAction(formData: FormData): Promise<ActionResult> {
@@ -174,5 +174,5 @@ export async function acceptInvitationAction(
     .returns<Pick<WorkspaceRow, 'slug'>[]>()
 
   revalidatePath('/', 'layout')
-  redirect(wsData?.[0]?.slug ? `/${wsData[0].slug}` : '/')
+  redirect(wsData?.[0]?.slug ? `/${wsData[0].slug}` : '/home')
 }

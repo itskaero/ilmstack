@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   ArrowLeft, Edit3, Save, X, Trash2, MoreHorizontal,
-  ChevronRight, Stethoscope, User, Hash,
+  ChevronRight, Stethoscope, User,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -79,8 +79,6 @@ export function CaseDetailClient({
   const [diagnosis, setDiagnosis] = useState(initialCase.diagnosis ?? '')
   const [patientAgeRange, setPatientAgeRange] = useState(initialCase.patient_age_range ?? '')
   const [patientGender, setPatientGender] = useState<PatientGender | ''>(initialCase.patient_gender ?? '')
-  const [icdCodes, setIcdCodes] = useState<string[]>(initialCase.icd_codes ?? [])
-  const [icdInput, setIcdInput] = useState('')
   const [topicId, setTopicId] = useState<string | null>(initialCase.topic_id)
   const [selectedTagIds, setSelectedTagIds] = useState(initialCase.tags.map((t) => t.id))
   const [presentation, setPresentation] = useState(initialCase.presentation ?? '')
@@ -123,7 +121,7 @@ export function CaseDetailClient({
       if (diagnosis) fd.set('diagnosis', diagnosis)
       if (patientAgeRange) fd.set('patient_age_range', patientAgeRange)
       if (patientGender) fd.set('patient_gender', patientGender)
-      fd.set('icd_codes', JSON.stringify(icdCodes))
+      fd.set('icd_codes', '[]')
       if (topicId) fd.set('topic_id', topicId)
       selectedTagIds.forEach((id) => fd.append('tag_ids', id))
       if (presentation) fd.set('presentation', presentation)
@@ -141,7 +139,7 @@ export function CaseDetailClient({
       setCaseData((prev) => ({
         ...prev, title, specialty: specialty || null, diagnosis: diagnosis || null,
         patient_age_range: patientAgeRange || null, patient_gender: (patientGender || null) as PatientGender | null,
-        icd_codes: icdCodes, topic_id: topicId, presentation: presentation || null,
+        icd_codes: [], topic_id: topicId, presentation: presentation || null,
         history: history || null, examination: examination || null, investigations: investigations || null,
         management_timeline: managementTimeline, outcome: outcome || null, learning_points: learningPoints || null,
         topic: topics.find((t) => t.id === topicId) ?? null,
@@ -154,7 +152,7 @@ export function CaseDetailClient({
   const handleCancel = () => {
     setTitle(caseData.title); setSpecialty(caseData.specialty ?? ''); setDiagnosis(caseData.diagnosis ?? '')
     setPatientAgeRange(caseData.patient_age_range ?? ''); setPatientGender(caseData.patient_gender ?? '')
-    setIcdCodes(caseData.icd_codes ?? []); setTopicId(caseData.topic_id); setSelectedTagIds(caseData.tags.map((t) => t.id))
+    setTopicId(caseData.topic_id); setSelectedTagIds(caseData.tags.map((t) => t.id))
     setPresentation(caseData.presentation ?? ''); setHistory(caseData.history ?? ''); setExamination(caseData.examination ?? '')
     setInvestigations(caseData.investigations ?? ''); setManagementTimeline(caseData.management_timeline ?? [])
     setOutcome(caseData.outcome ?? ''); setLearningPoints(caseData.learning_points ?? ''); setIsEditing(false)
@@ -172,11 +170,6 @@ export function CaseDetailClient({
   const handleDelete = () => {
     if (!confirm('Delete this case? This cannot be undone.')) return
     startTransition(async () => { await deleteCaseAction(caseData.id, workspaceId, workspaceSlug) })
-  }
-
-  const addIcdCode = () => {
-    const code = icdInput.trim().toUpperCase()
-    if (code && !icdCodes.includes(code)) { setIcdCodes((p) => [...p, code]); setIcdInput('') }
   }
 
   return (
@@ -244,12 +237,9 @@ export function CaseDetailClient({
             {caseData.patient_gender && (<><span>·</span><span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{GENDER_LABELS[caseData.patient_gender]}{caseData.patient_age_range && `, ${caseData.patient_age_range} yrs`}</span></>)}
           </div>
 
-          {/* Diagnosis + ICD + tags */}
+          {/* Diagnosis + tags */}
           <div className="flex flex-wrap gap-1.5 mb-4">
             {caseData.diagnosis && <Badge variant="secondary">{caseData.diagnosis}</Badge>}
-            {(caseData.icd_codes ?? []).map((c) => (
-              <Badge key={c} variant="outline" className="text-xs gap-1"><Hash className="h-2.5 w-2.5" />{c}</Badge>
-            ))}
             {caseData.topic && <Badge variant="secondary">{caseData.topic.name}</Badge>}
             {caseData.tags.map((t) => (
               <Badge key={t.id} variant="outline" className="text-xs" style={{ borderColor: t.color + '60', color: t.color }}>{t.name}</Badge>
@@ -381,20 +371,6 @@ export function CaseDetailClient({
                         <SelectItem value="not_disclosed">Not disclosed</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">ICD Codes</Label>
-                  <div className="flex gap-2">
-                    <Input value={icdInput} onChange={(e) => setIcdInput(e.target.value)} placeholder="e.g. I21.0" className="h-8 text-sm flex-1" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addIcdCode() } }} />
-                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={addIcdCode}>Add</Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {icdCodes.map((code) => (
-                      <span key={code} className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded border">
-                        {code}<button type="button" onClick={() => setIcdCodes((p) => p.filter((c) => c !== code))}><X className="h-3 w-3 text-muted-foreground hover:text-destructive" /></button>
-                      </span>
-                    ))}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
