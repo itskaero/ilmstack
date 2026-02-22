@@ -111,8 +111,8 @@ export default async function BrowseWorkspacesPage({
       <nav className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           <Link href="/home" className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.png" alt="IlmStack" width={26} height={26} className="rounded" />
-            <span className="font-semibold text-sm hidden sm:block">IlmStack Health</span>
+            <Image src="/logo.png" alt="Clinical Ledger" width={26} height={26} className="rounded" />
+            <span className="font-semibold text-sm hidden sm:block">Clinical Ledger</span>
           </Link>
 
           <div className="flex items-center gap-3">

@@ -332,6 +332,13 @@ export interface GuidelineVersionRow {
   created_at: string
 }
 
+export interface CaseCollaboratorRow {
+  case_id: string
+  user_id: string
+  added_by: string
+  added_at: string
+}
+
 export type JoinRequestStatus = 'pending' | 'approved' | 'rejected'
 
 export interface WorkspaceJoinRequestRow {
@@ -397,11 +404,16 @@ export interface ReviewAction extends ReviewActionRow {
   actor: Profile
 }
 
+export interface CaseCollaborator extends CaseCollaboratorRow {
+  profile: Profile
+}
+
 export interface CaseWithRelations extends CaseRow {
   author: Profile
   topic: Topic | null
   tags: Tag[]
   imaging: CaseImagingRow[]
+  collaborators: CaseCollaborator[]
 }
 
 export interface JournalWithEntries extends JournalRow {
@@ -568,6 +580,11 @@ export interface Database {
         Row: CaseRow
         Insert: Omit<CaseRow, 'id' | 'created_at' | 'updated_at' | 'view_count' | 'search_vector'>
         Update: Partial<Omit<CaseRow, 'id' | 'workspace_id' | 'author_id' | 'created_at' | 'search_vector'>>
+      }
+      case_collaborators: {
+        Row: CaseCollaboratorRow
+        Insert: Omit<CaseCollaboratorRow, 'added_at'>
+        Update: never
       }
       case_imaging: {
         Row: CaseImagingRow

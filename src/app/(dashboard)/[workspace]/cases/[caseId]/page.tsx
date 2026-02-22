@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getWorkspaceBySlug, getMemberRole } from '@/services/workspace.service'
+import { getWorkspaceBySlug, getMemberRole, getWorkspaceMembers } from '@/services/workspace.service'
 import { getCaseById } from '@/services/cases.service'
 import { getTopics, getTags } from '@/services/notes.service'
 import { CaseDetailClient } from './case-detail-client'
@@ -22,11 +22,12 @@ export default async function CaseDetailPage({ params }: PageProps) {
   const role = await getMemberRole(supabase, workspace.id, user.id)
   if (!role) notFound()
 
-  const [caseData, topics, tags, profileData] = await Promise.all([
+  const [caseData, topics, tags, profileData, workspaceMembers] = await Promise.all([
     getCaseById(supabase, caseId, workspace.id),
     getTopics(supabase, workspace.id),
     getTags(supabase, workspace.id),
     supabase.from('profiles').select('*').eq('id', user.id).single(),
+    getWorkspaceMembers(supabase, workspace.id),
   ])
 
   if (!caseData) notFound()
@@ -43,6 +44,7 @@ export default async function CaseDetailPage({ params }: PageProps) {
       workspaceId={workspace.id}
       currentUser={profileData.data!}
       role={role}
+      workspaceMembers={workspaceMembers}
     />
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   FileText,
@@ -86,13 +87,12 @@ export function Sidebar({
         className
       )}
     >
-      {/* Workspace switcher header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        <WorkspaceSwitcher
-          currentWorkspace={workspace}
-          allWorkspaces={allWorkspaces}
-          memberships={currentMemberships}
-        />
+      {/* Branding */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2">
+        <Link href="/home" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="Clinical Ledger" width={24} height={24} className="rounded-lg" />
+          <span className="text-xs font-semibold text-muted-foreground tracking-wide">Clinical Ledger</span>
+        </Link>
         {onClose && (
           <button
             onClick={onClose}
@@ -102,6 +102,15 @@ export function Sidebar({
             <X className="w-4 h-4" />
           </button>
         )}
+      </div>
+
+      {/* Workspace switcher */}
+      <div className="px-3 pb-2 border-b border-border">
+        <WorkspaceSwitcher
+          currentWorkspace={workspace}
+          allWorkspaces={allWorkspaces}
+          memberships={currentMemberships}
+        />
       </div>
 
       {/* Navigation */}

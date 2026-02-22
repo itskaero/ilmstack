@@ -8,6 +8,7 @@ import type {
   CreateCaseInput,
   UpdateCaseInput,
   CaseStatus,
+  CaseCollaborator,
 } from '@/types/database'
 
 export type CaseFilters = {
@@ -28,7 +29,8 @@ const CASE_SELECT = `
   *,
   author:profiles!cases_author_id_fkey(*),
   topic:topics(*),
-  case_tags(tag:tags(*))
+  case_tags(tag:tags(*)),
+  case_collaborators(*, profile:profiles!case_collaborators_user_id_fkey(*))
 `
 
 // ── Queries ───────────────────────────────────────────────────
@@ -61,6 +63,7 @@ export async function getCases(
   const cases: CaseWithRelations[] = (data ?? []).map((c: any) => ({
     ...c,
     tags: (c.case_tags ?? []).map((ct: any) => ct.tag).filter(Boolean),
+    collaborators: (c.case_collaborators ?? []).filter((col: any) => col.profile),
     imaging: [],
   }))
 
@@ -86,6 +89,7 @@ export async function getCaseById(
   return {
     ...(data as any),
     tags: ((data as any).case_tags ?? []).map((ct: any) => ct.tag).filter(Boolean),
+    collaborators: ((data as any).case_collaborators ?? []).filter((col: any) => col.profile),
     imaging,
   } as CaseWithRelations
 }
@@ -256,6 +260,34 @@ export async function updateCaseImageFindings(
     .update({ findings })
     .eq('id', imageId)
     .eq('workspace_id', workspaceId)
+}
+
+// ── Collaborators ─────────────────────────────────────────────
+
+export async function addCaseCollaborator(
+  supabase: SupabaseClient,
+  caseId: string,
+  userId: string,
+  addedBy: string
+): Promise<{ error: string | null }> {
+  const { error } = await (supabase.from('case_collaborators') as any).insert({
+    case_id: caseId,
+    user_id: userId,
+    added_by: addedBy,
+  })
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+export async function removeCaseCollaborator(
+  supabase: SupabaseClient,
+  caseId: string,
+  userId: string
+): Promise<void> {
+  await (supabase.from('case_collaborators') as any)
+    .delete()
+    .eq('case_id', caseId)
+    .eq('user_id', userId)
 }
 
 // ── Specialties (distinct) ────────────────────────────────────

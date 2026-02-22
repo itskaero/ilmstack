@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NoteCard } from '@/components/notes/note-card'
 import { NoteFilters } from '@/components/notes/note-filters'
+import { MembersPanel } from '@/components/workspace/members-panel'
+import { getWorkspaceMemberStats } from '../members-panel-action'
 import { ROUTES } from '@/config/app'
 import type { NoteStatus } from '@/types/database'
 
@@ -38,10 +40,11 @@ export default async function NotesPage({ params, searchParams }: PageProps) {
     search: sp.search || null,
   }
 
-  const [{ notes, total }, topics, tags] = await Promise.all([
+  const [{ notes, total }, topics, tags, memberStats] = await Promise.all([
     getNotes(supabase, workspace.id, filters, page, 20),
     getTopics(supabase, workspace.id),
     getTags(supabase, workspace.id),
+    getWorkspaceMemberStats(workspace.id),
   ])
 
   const totalPages = Math.ceil(total / 20)
@@ -145,6 +148,8 @@ export default async function NotesPage({ params, searchParams }: PageProps) {
           )}
         </div>
       </div>
+
+      <MembersPanel members={memberStats} />
     </div>
   )
 }

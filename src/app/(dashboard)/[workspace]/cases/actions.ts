@@ -12,6 +12,8 @@ import {
   addCaseImage,
   deleteCaseImage,
   updateCaseImageFindings,
+  addCaseCollaborator,
+  removeCaseCollaborator,
 } from '@/services/cases.service'
 import { createTopic, createTag } from '@/services/notes.service'
 import type { CaseStatus } from '@/types/database'
@@ -232,6 +234,40 @@ export async function updateImageFindingsAction(
   if (!user) return { error: 'Not authenticated' }
 
   await updateCaseImageFindings(supabase, imageId, workspaceId, findings || null)
+  revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
+  return { error: null }
+}
+
+// ── Collaborators ─────────────────────────────────────────────
+
+export async function addCollaboratorAction(
+  caseId: string,
+  workspaceId: string,
+  workspaceSlug: string,
+  userId: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const result = await addCaseCollaborator(supabase, caseId, userId, user.id)
+  if (result.error) return result
+
+  revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
+  return { error: null }
+}
+
+export async function removeCollaboratorAction(
+  caseId: string,
+  workspaceId: string,
+  workspaceSlug: string,
+  userId: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  await removeCaseCollaborator(supabase, caseId, userId)
   revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
   return { error: null }
 }

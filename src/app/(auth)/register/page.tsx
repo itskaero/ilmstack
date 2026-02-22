@@ -52,7 +52,7 @@ export default function RegisterPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
         <p className="text-muted-foreground text-sm">
-          Join IlmStack Health to collaborate with your team
+          Join Clinical Ledger to collaborate with your team
         </p>
       </div>
 

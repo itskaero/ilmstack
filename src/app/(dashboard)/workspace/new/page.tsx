@@ -14,9 +14,9 @@ export default async function NewWorkspacePage() {
         {/* Header */}
         <div className="mb-8 flex items-center gap-3">
           <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">IH</span>
+            <span className="text-primary-foreground font-bold text-sm">CL</span>
           </div>
-          <span className="font-semibold text-lg">IlmStack Health</span>
+          <span className="font-semibold text-lg">Clinical Ledger</span>
         </div>
 
         <div className="space-y-2 mb-8">

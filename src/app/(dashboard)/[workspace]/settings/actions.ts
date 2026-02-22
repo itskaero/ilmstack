@@ -249,7 +249,7 @@ export async function inviteMemberAction(
     supabase.from('profiles').select('full_name, email').eq('id', user.id).single(),
   ])
 
-  const workspaceName = (wsResult.data as any)?.name ?? 'IlmStack Health Workspace'
+  const workspaceName = (wsResult.data as any)?.name ?? 'Clinical Ledger Workspace'
   const inviterProfile = inviterResult.data as any
   const inviterName = inviterProfile?.full_name ?? inviterProfile?.email ?? 'A workspace admin'
 

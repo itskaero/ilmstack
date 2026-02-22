@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select'
 import { CaseCard } from '@/components/cases/case-card'
 import { NoteFilters } from '@/components/notes/note-filters'
+import { MembersPanel } from '@/components/workspace/members-panel'
+import { getWorkspaceMemberStats } from '../members-panel-action'
 import { ROUTES } from '@/config/app'
 import type { CaseStatus } from '@/types/database'
 
@@ -49,11 +51,12 @@ export default async function CasesPage({ params, searchParams }: PageProps) {
     specialty: sp.specialty || null,
   }
 
-  const [{ cases, total }, topics, tags, specialties] = await Promise.all([
+  const [{ cases, total }, topics, tags, specialties, memberStats] = await Promise.all([
     getCases(supabase, workspace.id, filters, page, 20),
     getTopics(supabase, workspace.id),
     getTags(supabase, workspace.id),
     getSpecialties(supabase, workspace.id),
+    getWorkspaceMemberStats(workspace.id),
   ])
 
   const totalPages = Math.ceil(total / 20)
@@ -154,6 +157,8 @@ export default async function CasesPage({ params, searchParams }: PageProps) {
           )}
         </div>
       </div>
+
+      <MembersPanel members={memberStats} />
     </div>
   )
 }

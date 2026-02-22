@@ -212,8 +212,8 @@ export function HomePage({ profile, workspaces, activity }: HomePageProps) {
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/home" className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.png" alt="IlmStack" width={28} height={28} className="rounded" />
-            <span className="font-semibold text-sm hidden sm:block">IlmStack Health</span>
+            <Image src="/logo.png" alt="Clinical Ledger" width={28} height={28} className="rounded" />
+            <span className="font-semibold text-sm hidden sm:block">Clinical Ledger</span>
           </Link>
 
           {/* User menu */}

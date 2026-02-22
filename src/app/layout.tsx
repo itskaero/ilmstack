@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'IlmStack Health',
-    template: '%s | IlmStack Health',
+    default: 'Clinical Ledger',
+    template: '%s | Clinical Ledger',
   },
   icons: {
     icon: '/logo.png',

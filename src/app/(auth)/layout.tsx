@@ -27,13 +27,13 @@ export default function AuthLayout({
           <div className="flex items-center gap-3">
             <Image
               src="/logo.png"
-              alt="IlmStack Health"
+              alt="Clinical Ledger"
               width={36}
               height={36}
               className="rounded-lg"
               priority
             />
-            <span className="text-white font-semibold text-lg">IlmStack Health</span>
+            <span className="text-white font-semibold text-lg">Clinical Ledger</span>
           </div>
 
           {/* Center tagline */}
@@ -71,13 +71,13 @@ export default function AuthLayout({
         <div className="lg:hidden mb-8 flex items-center gap-2">
           <Image
             src="/logo.png"
-            alt="IlmStack Health"
+            alt="Clinical Ledger"
             width={32}
             height={32}
             className="rounded-lg"
             priority
           />
-          <span className="font-semibold text-lg">IlmStack Health</span>
+          <span className="font-semibold text-lg">Clinical Ledger</span>
         </div>
 
         <div className="w-full max-w-[400px]">{children}</div>

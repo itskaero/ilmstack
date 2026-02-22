@@ -3,8 +3,8 @@
 // ============================================================
 
 export const APP_CONFIG = {
-  name: 'IlmStack Health',
-  shortName: 'IlmStack',
+  name: 'Clinical Ledger',
+  shortName: 'Clinical Ledger',
   description: 'Clinical knowledge platform for hospitals',
   version: '1.0.0',
 } as const

@@ -12,7 +12,7 @@
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/server'
 
-const FROM_ADDRESS = process.env.EMAIL_FROM ?? 'IlmStack Health <noreply@ilmstack.health>'
+const FROM_ADDRESS = process.env.EMAIL_FROM ?? 'Clinical Ledger <noreply@clinicalledger.app>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
 // ── Workspace Invitation ──────────────────────────────────────────────────
@@ -41,7 +41,7 @@ export async function sendInvitationEmail({
     const { error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: `You've been invited to join ${workspaceName} on IlmStack Health`,
+      subject: `You've been invited to join ${workspaceName} on Clinical Ledger`,
       html: buildInvitationHtml({ inviterName, workspaceName, role, acceptUrl }),
       text: buildInvitationText({ inviterName, workspaceName, role, acceptUrl }),
     })
@@ -124,12 +124,12 @@ function buildInvitationHtml({ inviterName, workspaceName, role, acceptUrl }: Te
 <body>
   <div class="wrapper">
     <div class="header">
-      <h1>IlmStack Health</h1>
+      <h1>Clinical Ledger</h1>
       <p>Clinical Knowledge Platform</p>
     </div>
     <div class="body">
       <p>Hi there,</p>
-      <p><strong>${inviterName}</strong> has invited you to join their workspace on IlmStack Health.</p>
+      <p><strong>${inviterName}</strong> has invited you to join their workspace on Clinical Ledger.</p>
 
       <div class="workspace-card">
         <p class="ws-name">${workspaceName}</p>
@@ -155,7 +155,7 @@ function buildInvitationHtml({ inviterName, workspaceName, role, acceptUrl }: Te
 
 function buildInvitationText({ inviterName, workspaceName, role, acceptUrl }: TemplateData) {
   return `
-IlmStack Health — Workspace Invitation
+Clinical Ledger — Workspace Invitation
 
 ${inviterName} has invited you to join "${workspaceName}" as ${role}.
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   ArrowLeft, Edit3, Save, X, Trash2, MoreHorizontal,
-  ChevronRight, Stethoscope, User,
+  ChevronRight, Stethoscope, User, UserPlus, Users,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -30,12 +30,16 @@ import { TagSelector } from '@/components/notes/tag-selector'
 import { TopicSelector } from '@/components/notes/topic-selector'
 import {
   updateCaseAction, deleteCaseAction, updateCaseStatusAction,
-  createTagAction, createTopicAction,
+  createTagAction, createTopicAction, addCollaboratorAction, removeCollaboratorAction,
 } from '../actions'
 import { GrowthChartEditor } from '@/components/cases/growth-chart-editor'
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover'
 import type {
   CaseWithRelations, Topic, Tag, CaseStatus,
   WorkspaceRole, Profile, ManagementTimelineEntry, PatientGender, GrowthData,
+  WorkspaceMember,
 } from '@/types/database'
 import { ROUTES } from '@/config/app'
 
@@ -57,6 +61,7 @@ interface CaseDetailClientProps {
   workspaceId: string
   currentUser: Profile
   role: WorkspaceRole
+  workspaceMembers: WorkspaceMember[]
 }
 
 export function CaseDetailClient({
@@ -67,6 +72,7 @@ export function CaseDetailClient({
   workspaceId,
   currentUser,
   role,
+  workspaceMembers,
 }: CaseDetailClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -92,9 +98,20 @@ export function CaseDetailClient({
   const [topics, setTopics] = useState(initialTopics)
   const [allTags, setAllTags] = useState(initialTags)
 
-  const canEdit = role === 'admin' || role === 'editor' || (role === 'contributor' && caseData.author_id === currentUser.id)
+  const [collaborators, setCollaborators] = useState(initialCase.collaborators ?? [])
+  const [addCollabOpen, setAddCollabOpen] = useState(false)
+
+  const isCollaborator = collaborators.some((c) => c.user_id === currentUser.id)
+  const canEdit = role === 'admin' || role === 'editor' || isCollaborator ||
+    (role === 'contributor' && caseData.author_id === currentUser.id)
+  const canManageCollaborators = role === 'admin' || role === 'editor' || caseData.author_id === currentUser.id
   const canChangeStatus = role === 'admin' || role === 'editor'
   const transitions = STATUS_TRANSITIONS[caseData.status] ?? []
+
+  // Members not already collaborators (and not the author)
+  const addableMembers = workspaceMembers.filter(
+    (m) => m.user_id !== caseData.author_id && !collaborators.some((c) => c.user_id === m.user_id)
+  )
 
   const authorName = caseData.author?.full_name ?? caseData.author?.email ?? 'Unknown'
   const initials = authorName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -172,6 +189,26 @@ export function CaseDetailClient({
     startTransition(async () => { await deleteCaseAction(caseData.id, workspaceId, workspaceSlug) })
   }
 
+  const handleAddCollaborator = async (member: WorkspaceMember) => {
+    const result = await addCollaboratorAction(caseData.id, workspaceId, workspaceSlug, member.user_id)
+    if (result.error) { toast.error(result.error); return }
+    setCollaborators((prev) => [...prev, {
+      case_id: caseData.id,
+      user_id: member.user_id,
+      added_by: currentUser.id,
+      added_at: new Date().toISOString(),
+      profile: member.profile,
+    }])
+    setAddCollabOpen(false)
+    toast.success(`${member.profile.full_name ?? member.profile.email} added as collaborator`)
+  }
+
+  const handleRemoveCollaborator = async (userId: string) => {
+    const result = await removeCollaboratorAction(caseData.id, workspaceId, workspaceSlug, userId)
+    if (result.error) { toast.error(result.error); return }
+    setCollaborators((prev) => prev.filter((c) => c.user_id !== userId))
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -245,6 +282,63 @@ export function CaseDetailClient({
               <Badge key={t.id} variant="outline" className="text-xs" style={{ borderColor: t.color + '60', color: t.color }}>{t.name}</Badge>
             ))}
           </div>
+
+          {/* Collaborators */}
+          {(collaborators.length > 0 || canManageCollaborators) && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                <Users className="h-3.5 w-3.5" />Collaborators
+              </span>
+              {collaborators.map((c) => {
+                const name = c.profile?.full_name ?? c.profile?.email ?? 'Unknown'
+                const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+                return (
+                  <span key={c.user_id} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 text-xs">
+                    <Avatar className="h-4 w-4">
+                      <AvatarImage src={c.profile?.avatar_url ?? undefined} />
+                      <AvatarFallback className="text-[8px]">{initials}</AvatarFallback>
+                    </Avatar>
+                    {name}
+                    {canManageCollaborators && (
+                      <button onClick={() => handleRemoveCollaborator(c.user_id)} className="ml-0.5 text-muted-foreground hover:text-destructive" aria-label="Remove">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </span>
+                )
+              })}
+              {canManageCollaborators && addableMembers.length > 0 && (
+                <Popover open={addCollabOpen} onOpenChange={setAddCollabOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 px-2 rounded-full text-xs gap-1">
+                      <UserPlus className="h-3 w-3" />Add
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-1" align="start">
+                    <p className="text-xs text-muted-foreground px-2 py-1.5 font-medium">Add collaborator</p>
+                    {addableMembers.map((m) => {
+                      const name = m.profile.full_name ?? m.profile.email
+                      const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+                      return (
+                        <button
+                          key={m.user_id}
+                          onClick={() => handleAddCollaborator(m)}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent text-left"
+                        >
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={m.profile.avatar_url ?? undefined} />
+                            <AvatarFallback className="text-[9px]">{initials}</AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground shrink-0">{m.role}</span>
+                        </button>
+                      )
+                    })}
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          )}
 
           <Separator className="mb-6" />
 
