@@ -145,19 +145,32 @@ export async function acceptInvitationAction(
   const { data: { user: currentUser } } = await supabase.auth.getUser()
   if (!currentUser) return { error: 'Authentication failed. Please try again.' }
 
+  // Ensure the logged-in user's email matches the invitation email
+  if (currentUser.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+    return {
+      error: `This invitation was sent to ${invitation.email}. You are signed in as ${currentUser.email}. Please sign out and try again.`,
+    }
+  }
+
   // Use admin client to bypass RLS — user is not yet a member so
   // workspace_members_insert_admin policy would block them
   const adminClient = createAdminClient()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: memberError } = await (adminClient.from('workspace_members') as any).upsert({
-    workspace_id: invitation.workspace_id,
-    user_id: currentUser.id,
-    role: invitation.role,
-    invited_by: invitation.invited_by,
-  })
+  const { error: memberError } = await (adminClient.from('workspace_members') as any).upsert(
+    {
+      workspace_id: invitation.workspace_id,
+      user_id: currentUser.id,
+      role: invitation.role,
+      invited_by: invitation.invited_by,
+    },
+    { onConflict: 'workspace_id,user_id' }
+  )
 
-  if (memberError) return { error: 'Failed to join workspace.' }
+  if (memberError) {
+    console.error('[AcceptInvitation] workspace_members upsert failed:', memberError)
+    return { error: 'Failed to join workspace.' }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (adminClient.from('workspace_invitations') as any).update({

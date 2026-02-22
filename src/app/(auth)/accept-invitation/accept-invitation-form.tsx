@@ -112,30 +112,45 @@ export function AcceptInvitationForm({
       )}
 
       {isLoggedIn ? (
-        /* Already logged in — just join */
-        <div className="space-y-4">
-          <Alert>
-            <AlertDescription>
-              You&apos;re signed in as <strong>{currentUserEmail}</strong>.
-              Click below to join the workspace.
-            </AlertDescription>
-          </Alert>
-          <Button
-            className="w-full"
-            disabled={isPending}
-            onClick={() => {
-              startTransition(async () => {
-                const formData = new FormData()
-                formData.set('email', currentUserEmail ?? '')
-                const result = await acceptInvitationAction(token, formData)
-                if (result && 'error' in result) setServerError(result.error)
-              })
-            }}
-          >
-            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Join {workspace.name}
-          </Button>
-        </div>
+        /* Already logged in */
+        currentUserEmail?.toLowerCase() !== invitation.email.toLowerCase() ? (
+          /* Wrong account — warn and block */
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertDescription>
+                This invitation was sent to <strong>{invitation.email}</strong>, but
+                you&apos;re signed in as <strong>{currentUserEmail}</strong>.
+                Please sign out and open the link again, or ask the admin to resend
+                the invitation to your current account.
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : (
+          /* Correct account — let them join */
+          <div className="space-y-4">
+            <Alert>
+              <AlertDescription>
+                You&apos;re signed in as <strong>{currentUserEmail}</strong>.
+                Click below to join the workspace.
+              </AlertDescription>
+            </Alert>
+            <Button
+              className="w-full"
+              disabled={isPending}
+              onClick={() => {
+                startTransition(async () => {
+                  const formData = new FormData()
+                  formData.set('email', currentUserEmail ?? '')
+                  const result = await acceptInvitationAction(token, formData)
+                  if (result && 'error' in result) setServerError(result.error)
+                })
+              }}
+            >
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Join {workspace.name}
+            </Button>
+          </div>
+        )
       ) : (
         /* New user registration */
         <Form {...form}>
