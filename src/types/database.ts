@@ -332,6 +332,19 @@ export interface GuidelineVersionRow {
   created_at: string
 }
 
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface WorkspaceJoinRequestRow {
+  id: string
+  workspace_id: string
+  user_id: string
+  message: string | null
+  status: JoinRequestStatus
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+}
+
 // ── Enriched / Joined Types (app-layer) ──────────────────────
 
 export interface Profile extends ProfileRow {}
@@ -407,6 +420,10 @@ export interface GuidelineVersionWithAuthor extends GuidelineVersionRow {
 
 export interface JournalEntryWithNote extends JournalEntryRow {
   note: NoteWithRelations
+}
+
+export interface WorkspaceJoinRequestWithProfile extends WorkspaceJoinRequestRow {
+  profile: Pick<Profile, 'id' | 'full_name' | 'email' | 'avatar_url' | 'specialty' | 'clinical_role'>
 }
 
 // ── Insert Types (for creating records) ──────────────────────

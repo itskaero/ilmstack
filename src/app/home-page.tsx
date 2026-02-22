@@ -1,19 +1,17 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
-import { toast } from 'sonner'
 import {
   Plus, Search, FileText, Stethoscope, BookOpen,
-  ChevronRight, LogOut, Building2, Loader2,
+  ChevronRight, LogOut, Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,27 +19,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
-import { searchWorkspacesAction } from './home-actions'
 import type { HomeProfile, WorkspaceWithRole, ActivityItem } from './home-types'
-
-// ── Internal types ─────────────────────────────────────────────────────
-
-interface SearchedWorkspace {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  logo_url: string | null
-  primary_color: string
-  specialties: string[]
-}
 
 // ── Re-export types for consumers ──────────────────────────────────────
 export type { HomeProfile, WorkspaceWithRole, ActivityItem }
@@ -208,122 +187,6 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
   )
 }
 
-// ── Join Workspace Dialog ───────────────────────────────────────────────
-
-function JoinWorkspaceDialog({
-  open,
-  onClose,
-  excludeIds,
-}: {
-  open: boolean
-  onClose: () => void
-  excludeIds: string[]
-}) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchedWorkspace[]>([])
-  const [isPending, startTransition] = useTransition()
-  const [searched, setSearched] = useState(false)
-
-  const handleSearch = useCallback(() => {
-    if (query.trim().length < 2) {
-      toast.error('Enter at least 2 characters to search')
-      return
-    }
-    setSearched(false)
-    startTransition(async () => {
-      const { workspaces } = await searchWorkspacesAction(query, excludeIds)
-      setResults(workspaces as SearchedWorkspace[])
-      setSearched(true)
-    })
-  }, [query, excludeIds])
-
-  const handleClose = () => {
-    setQuery('')
-    setResults([])
-    setSearched(false)
-    onClose()
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Find a Workspace
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Search for a workspace by name or identifier. Contact the workspace admin to get an invitation link.
-          </p>
-
-          <div className="flex gap-2">
-            <Input
-              placeholder="Hospital or clinic name…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1"
-            />
-            <Button onClick={handleSearch} disabled={isPending} size="sm">
-              {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
-
-          {searched && results.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No workspaces found. Try a different name.
-            </p>
-          )}
-
-          {results.length > 0 && (
-            <div className="space-y-2">
-              {results.map((ws) => (
-                <div key={ws.id} className="rounded-lg border border-border p-3 flex items-center gap-3">
-                  {ws.logo_url ? (
-                    <Image
-                      src={ws.logo_url}
-                      alt={ws.name}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded object-cover shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="h-8 w-8 rounded flex items-center justify-center text-white font-bold text-xs shrink-0"
-                      style={{ backgroundColor: ws.primary_color }}
-                    >
-                      {ws.name.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{ws.name}</p>
-                    {ws.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-1">{ws.description}</p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() => {
-                      toast.info(`Contact a ${ws.name} administrator to get an invitation link.`, { duration: 6000 })
-                    }}
-                  >
-                    Request Access
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 // ── Main Home Page ─────────────────────────────────────────────────────
 
 interface HomePageProps {
@@ -333,7 +196,6 @@ interface HomePageProps {
 }
 
 export function HomePage({ profile, workspaces, activity }: HomePageProps) {
-  const [joinOpen, setJoinOpen] = useState(false)
   const router = useRouter()
 
   const handleSignOut = async () => {
@@ -413,14 +275,11 @@ export function HomePage({ profile, workspaces, activity }: HomePageProps) {
                 My Workspaces
               </h2>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  onClick={() => setJoinOpen(true)}
-                >
-                  <Search className="h-3 w-3 mr-1.5" />
-                  Find Workspace
+                <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
+                  <Link href="/workspaces">
+                    <Search className="h-3 w-3 mr-1.5" />
+                    Browse Workspaces
+                  </Link>
                 </Button>
                 <Button size="sm" className="h-8 text-xs" asChild>
                   <Link href="/workspace/new">
@@ -445,9 +304,11 @@ export function HomePage({ profile, workspaces, activity }: HomePageProps) {
                       Create Workspace
                     </Link>
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setJoinOpen(true)}>
-                    <Search className="h-3.5 w-3.5 mr-1.5" />
-                    Find Workspace
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href="/workspaces">
+                      <Search className="h-3.5 w-3.5 mr-1.5" />
+                      Browse Workspaces
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -470,12 +331,6 @@ export function HomePage({ profile, workspaces, activity }: HomePageProps) {
         </div>
       </main>
 
-      {/* ── Join dialog ── */}
-      <JoinWorkspaceDialog
-        open={joinOpen}
-        onClose={() => setJoinOpen(false)}
-        excludeIds={workspaces.map((w) => w.id)}
-      />
     </div>
   )
 }

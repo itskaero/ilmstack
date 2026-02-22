@@ -1,16 +1,21 @@
 // ============================================================
 // ILMSTACK HEALTH — Email Utilities
-// Uses Resend for transactional email delivery.
+//
+// Priority:
+//   1. Resend      — if RESEND_API_KEY is set in env
+//   2. Supabase    — falls back to Supabase's own email
+//                    infrastructure (auth.admin.inviteUserByEmail).
+//                    Works for new users; existing Supabase users
+//                    get a console warning with the manual link.
 // ============================================================
 
 import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { createAdminClient } from '@/lib/supabase/server'
 
 const FROM_ADDRESS = process.env.EMAIL_FROM ?? 'IlmStack Health <noreply@ilmstack.health>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-// ── Workspace Invitation ─────────────────────────────────────
+// ── Workspace Invitation ──────────────────────────────────────────────────
 
 interface SendInvitationEmailParams {
   to: string
@@ -29,7 +34,67 @@ export async function sendInvitationEmail({
 }: SendInvitationEmailParams): Promise<{ error: string | null }> {
   const acceptUrl = `${APP_URL}/accept-invitation?token=${token}`
 
-  const html = `
+  // ── Primary: Resend ──────────────────────────────────────────────────────
+  if (process.env.RESEND_API_KEY) {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `You've been invited to join ${workspaceName} on IlmStack Health`,
+      html: buildInvitationHtml({ inviterName, workspaceName, role, acceptUrl }),
+      text: buildInvitationText({ inviterName, workspaceName, role, acceptUrl }),
+    })
+
+    if (error) {
+      console.error('[Email] Resend failed:', error)
+      return { error: error.message }
+    }
+
+    return { error: null }
+  }
+
+  // ── Fallback: Supabase built-in email ────────────────────────────────────
+  // Uses Supabase's own email infrastructure — either its default SMTP or a
+  // custom SMTP configured in the Supabase dashboard under Auth > SMTP.
+  //
+  // Limitation: inviteUserByEmail only works for users who do not yet have a
+  // Supabase auth account. For existing users it will return an error, but the
+  // invitation record is always saved to the DB, so the admin can share the
+  // accept link manually.
+  const admin = createAdminClient()
+
+  // Route through the auth callback so PKCE code exchange happens and a
+  // session is established before landing on the accept-invitation page.
+  const callbackUrl =
+    `${APP_URL}/api/auth/callback?next=${encodeURIComponent('/accept-invitation?token=' + token)}`
+
+  const { error } = await admin.auth.admin.inviteUserByEmail(to, {
+    redirectTo: callbackUrl,
+  })
+
+  if (error) {
+    console.warn(
+      `[Email] Supabase invite skipped for ${to}: ${error.message}\n` +
+        `The invitation is saved in the database. Share this link manually:\n${acceptUrl}`
+    )
+    // Do not propagate the error — the invitation record still exists in the DB.
+  }
+
+  return { error: null }
+}
+
+// ── Email templates ───────────────────────────────────────────────────────
+
+interface TemplateData {
+  inviterName: string
+  workspaceName: string
+  role: string
+  acceptUrl: string
+}
+
+function buildInvitationHtml({ inviterName, workspaceName, role, acceptUrl }: TemplateData) {
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,8 +151,10 @@ export async function sendInvitationEmail({
 </body>
 </html>
 `
+}
 
-  const text = `
+function buildInvitationText({ inviterName, workspaceName, role, acceptUrl }: TemplateData) {
+  return `
 IlmStack Health — Workspace Invitation
 
 ${inviterName} has invited you to join "${workspaceName}" as ${role}.
@@ -99,19 +166,4 @@ This link expires in 7 days.
 
 If you weren't expecting this, you can safely ignore this email.
 `.trim()
-
-  const { error } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to,
-    subject: `You've been invited to join ${workspaceName} on IlmStack Health`,
-    html,
-    text,
-  })
-
-  if (error) {
-    console.error('[Email] Failed to send invitation:', error)
-    return { error: error.message }
-  }
-
-  return { error: null }
 }
