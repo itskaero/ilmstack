@@ -26,6 +26,7 @@ import {
 import { CaseStatusBadge } from '@/components/cases/case-status-badge'
 import { ManagementTimelineEditor } from '@/components/cases/management-timeline-editor'
 import { ImagingGallery } from '@/components/cases/imaging-gallery'
+import { CaseFollowUpTimeline } from '@/components/cases/case-follow-up-timeline'
 import { TagSelector } from '@/components/notes/tag-selector'
 import { TopicSelector } from '@/components/notes/topic-selector'
 import {
@@ -349,6 +350,9 @@ export function CaseDetailClient({
               <TabsTrigger value="investigations">Investigations ({caseData.imaging.length})</TabsTrigger>
               <TabsTrigger value="management">Management</TabsTrigger>
               <TabsTrigger value="outcome">Outcome & Learning</TabsTrigger>
+              <TabsTrigger value="timeline">
+                Follow-up{caseData.follow_ups.length > 0 ? ` (${caseData.follow_ups.length})` : ''}
+              </TabsTrigger>
               <TabsTrigger value="growth">Growth Charts</TabsTrigger>
               {isEditing && <TabsTrigger value="meta">Metadata</TabsTrigger>}
             </TabsList>
@@ -435,6 +439,18 @@ export function CaseDetailClient({
                   {!caseData.outcome && !caseData.learning_points && <p className="text-sm text-muted-foreground italic">No outcome recorded yet.</p>}
                 </>
               )}
+            </TabsContent>
+
+            {/* Follow-up Timeline */}
+            <TabsContent value="timeline">
+              <CaseFollowUpTimeline
+                initialEntries={caseData.follow_ups}
+                caseId={caseData.id}
+                workspaceId={workspaceId}
+                workspaceSlug={workspaceSlug}
+                currentUserId={currentUser.id}
+                canEdit={canEdit}
+              />
             </TabsContent>
 
             {/* Growth Charts */}

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowLeft, Plus } from 'lucide-react'
@@ -41,8 +41,10 @@ export default async function BrowseWorkspacesPage({
 
   const profile = profileData ?? { full_name: null, email: user.email ?? '', avatar_url: null }
 
-  // ── Fetch workspaces (filtered) ──────────────────────────────
-  let wsQuery = supabase
+  // ── Fetch workspaces (filtered) — admin client bypasses RLS ──
+  const admin = createAdminClient()
+
+  let wsQuery = admin
     .from('workspaces')
     .select('id, name, slug, description, logo_url, primary_color, specialties')
     .order('name')
@@ -56,8 +58,11 @@ export default async function BrowseWorkspacesPage({
     wsQuery = wsQuery.contains('specialties', [specialty])
   }
 
-  const { data: wsData } = await wsQuery.returns<WsRow[]>()
-  const workspaces: BrowseWorkspace[] = wsData ?? []
+  const { data: wsData } = await wsQuery
+  const workspaces: BrowseWorkspace[] = (wsData ?? []).map((ws: WsRow) => ({
+    ...ws,
+    specialties: ws.specialties ?? [],
+  }))
 
   // ── Fetch user's memberships ─────────────────────────────────
   const { data: memberships } = await supabase
@@ -83,10 +88,10 @@ export default async function BrowseWorkspacesPage({
   }
 
   // ── Collect all unique specialties for the filter ────────────
-  const { data: allWs } = await supabase
+  const { data: allWsRaw } = await admin
     .from('workspaces')
     .select('specialties')
-    .returns<{ specialties: string[] }[]>()
+  const allWs = allWsRaw as { specialties: string[] | null }[] | null
 
   const specialtySet = new Set<string>()
   for (const ws of allWs ?? []) {
@@ -97,7 +102,6 @@ export default async function BrowseWorkspacesPage({
   const allSpecialties = Array.from(specialtySet).sort()
 
   // ── Nav helpers ──────────────────────────────────────────────
-  const displayName = profile.full_name ?? profile.email.split('@')[0]
   const initials = (profile.full_name ?? profile.email)
     .split(' ')
     .map((p) => p[0])

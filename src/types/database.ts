@@ -339,6 +339,29 @@ export interface CaseCollaboratorRow {
   added_at: string
 }
 
+export type CaseFollowUpType =
+  | 'follow_up'
+  | 'admission'
+  | 'discharge'
+  | 'labs'
+  | 'imaging'
+  | 'diagnosis_change'
+  | 'treatment_change'
+  | 'procedure'
+  | 'referral'
+  | 'note'
+
+export interface CaseFollowUpRow {
+  id: string
+  case_id: string
+  author_id: string
+  entry_type: CaseFollowUpType
+  title: string
+  content: string | null
+  occurred_at: string
+  created_at: string
+}
+
 export type JoinRequestStatus = 'pending' | 'approved' | 'rejected'
 
 export interface WorkspaceJoinRequestRow {
@@ -408,12 +431,17 @@ export interface CaseCollaborator extends CaseCollaboratorRow {
   profile: Profile
 }
 
+export interface CaseFollowUp extends CaseFollowUpRow {
+  author: Profile
+}
+
 export interface CaseWithRelations extends CaseRow {
   author: Profile
   topic: Topic | null
   tags: Tag[]
   imaging: CaseImagingRow[]
   collaborators: CaseCollaborator[]
+  follow_ups: CaseFollowUp[]
 }
 
 export interface JournalWithEntries extends JournalRow {
@@ -584,6 +612,11 @@ export interface Database {
       case_collaborators: {
         Row: CaseCollaboratorRow
         Insert: Omit<CaseCollaboratorRow, 'added_at'>
+        Update: never
+      }
+      case_follow_ups: {
+        Row: CaseFollowUpRow
+        Insert: Omit<CaseFollowUpRow, 'id' | 'created_at'>
         Update: never
       }
       case_imaging: {

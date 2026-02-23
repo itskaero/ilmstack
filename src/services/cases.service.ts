@@ -9,6 +9,8 @@ import type {
   UpdateCaseInput,
   CaseStatus,
   CaseCollaborator,
+  CaseFollowUp,
+  CaseFollowUpType,
 } from '@/types/database'
 
 export type CaseFilters = {
@@ -65,6 +67,7 @@ export async function getCases(
     tags: (c.case_tags ?? []).map((ct: any) => ct.tag).filter(Boolean),
     collaborators: (c.case_collaborators ?? []).filter((col: any) => col.profile),
     imaging: [],
+    follow_ups: [],
   }))
 
   return { cases, total: count ?? 0 }
@@ -91,6 +94,7 @@ export async function getCaseById(
     tags: ((data as any).case_tags ?? []).map((ct: any) => ct.tag).filter(Boolean),
     collaborators: ((data as any).case_collaborators ?? []).filter((col: any) => col.profile),
     imaging,
+    follow_ups: [],  // fetched separately in the page
   } as CaseWithRelations
 }
 
@@ -288,6 +292,44 @@ export async function removeCaseCollaborator(
     .delete()
     .eq('case_id', caseId)
     .eq('user_id', userId)
+}
+
+// ── Follow-up Timeline ────────────────────────────────────────
+
+export async function getCaseFollowUps(
+  supabase: SupabaseClient,
+  caseId: string
+): Promise<CaseFollowUp[]> {
+  const { data } = await (supabase.from('case_follow_ups') as any)
+    .select('*, author:profiles!case_follow_ups_author_id_fkey(*)')
+    .eq('case_id', caseId)
+    .order('occurred_at', { ascending: true })
+  return (data ?? []) as CaseFollowUp[]
+}
+
+export async function addCaseFollowUp(
+  supabase: SupabaseClient,
+  caseId: string,
+  authorId: string,
+  input: {
+    entry_type: CaseFollowUpType
+    title: string
+    content?: string | null
+    occurred_at: string
+  }
+): Promise<CaseFollowUp | null> {
+  const { data } = await (supabase.from('case_follow_ups') as any)
+    .insert({ case_id: caseId, author_id: authorId, ...input })
+    .select('*, author:profiles!case_follow_ups_author_id_fkey(*)')
+    .single()
+  return data as CaseFollowUp | null
+}
+
+export async function deleteCaseFollowUp(
+  supabase: SupabaseClient,
+  entryId: string
+): Promise<void> {
+  await (supabase.from('case_follow_ups') as any).delete().eq('id', entryId)
 }
 
 // ── Specialties (distinct) ────────────────────────────────────

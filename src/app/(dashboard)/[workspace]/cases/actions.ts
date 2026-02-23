@@ -14,9 +14,11 @@ import {
   updateCaseImageFindings,
   addCaseCollaborator,
   removeCaseCollaborator,
+  addCaseFollowUp,
+  deleteCaseFollowUp,
 } from '@/services/cases.service'
 import { createTopic, createTag } from '@/services/notes.service'
-import type { CaseStatus } from '@/types/database'
+import type { CaseStatus, CaseFollowUpType, CaseFollowUp } from '@/types/database'
 import { ROUTES, STORAGE_BUCKETS } from '@/config/app'
 
 // ── Re-export topic/tag creation (shared with notes) ──────────
@@ -268,6 +270,44 @@ export async function removeCollaboratorAction(
   if (!user) return { error: 'Not authenticated' }
 
   await removeCaseCollaborator(supabase, caseId, userId)
+  revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
+  return { error: null }
+}
+
+// ── Follow-up Timeline ────────────────────────────────────────
+
+export async function addFollowUpAction(
+  caseId: string,
+  workspaceId: string,
+  workspaceSlug: string,
+  input: {
+    entry_type: CaseFollowUpType
+    title: string
+    content?: string | null
+    occurred_at: string
+  }
+): Promise<{ entry: CaseFollowUp | null; error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { entry: null, error: 'Not authenticated' }
+
+  const entry = await addCaseFollowUp(supabase, caseId, user.id, input)
+  if (!entry) return { entry: null, error: 'Failed to add entry' }
+
+  revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
+  return { entry, error: null }
+}
+
+export async function deleteFollowUpAction(
+  entryId: string,
+  caseId: string,
+  workspaceSlug: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  await deleteCaseFollowUp(supabase, entryId)
   revalidatePath(ROUTES.caseDetail(workspaceSlug, caseId))
   return { error: null }
 }

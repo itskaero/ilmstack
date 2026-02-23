@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/shared/theme-provider'
+import { NavigationProgress } from '@/components/shared/navigation-progress'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -55,6 +56,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <NavigationProgress />
           {children}
           <Toaster position="bottom-right" richColors closeButton />
         </ThemeProvider>
