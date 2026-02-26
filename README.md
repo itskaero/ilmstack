@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./logo.png" alt="IlmStack Health Logo" width="120" />
+  <img src="./logo.png" alt="Clinical Ledger Logo" width="120" />
 </p>
 
-# IlmStack Health
+# Clinical Ledger
 
 ![Status](https://img.shields.io/badge/status-active-success)
 ![Next.js](https://img.shields.io/badge/next.js-16-black)
@@ -10,13 +10,13 @@
 ![TypeScript](https://img.shields.io/badge/typescript-5-3178c6)
 ![Supabase](https://img.shields.io/badge/supabase-auth%20%7C%20db%20%7C%20storage-3ecf8e)
 
-IlmStack Health is a clinical knowledge workspace built for hospital teams.
+Clinical Ledger is a clinical knowledge workspace built for hospital teams.
 It helps departments capture notes, manage case libraries, run review workflows, and publish journals in one place.
 
 ## Screenshot
 
 
-![IlmStack Dashboard](./docs/screenshot-dashboard.png)
+![Clinical Ledger Dashboard](./docs/screenshot-dashboard.png)
 
 
 ## What It Includes
